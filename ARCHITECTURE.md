@@ -166,11 +166,12 @@ src/
 - [x] ブログ入力 → キーワードマッチング（`<input><key>` → ラベルジャンプ）
 - [x] バリデーター（NMLValidator）/ グローバル変数の抽象化（GlobalState）/ DOMデモ + テスト38件
 
-### Phase 2: レンダラー
-- [ ] PixiJSセットアップ
-- [ ] 基本的な部屋レンダラー
-- [ ] キャラクター表示・アニメーション
-- [ ] 画像読み込み（SWF→PNG/WebP変換）
+### Phase 2: レンダラー ✅ 完了（2026-05-31）
+- [x] PixiJSセットアップ（v8・`PixiHost`が`NMLHost`を実装、`DomHost`を置換）
+- [x] 基本的な部屋レンダラー（`RoomRenderer` + `IsometricGrid` + `ItemSprite`、深度ソート）
+- [x] キャラクター表示・アニメーション（`Character` + `AnimationSystem`: idle/talk/glad/sad、発話中は自動口パク）
+- [x] 画像読み込み（`AssetResolver`: レイヤー合成 + GSAPフェードin/out。実アセット未変換のためプレースホルダモード）
+- [x] テキストボックス（`TextBox` PixiJS + Typewriter）/ ライフメーター（`LifeMeter`）/ テスト+17件（合計55件）
 
 ### Phase 3: ゲームUI
 - [ ] ブログエディタUI
@@ -288,3 +289,42 @@ npm run build      # tsc --noEmit 型チェック + 本番ビルド
 - SWF音声/アニメ → MP3/OGG・スプライト変換のアセットパイプラインが別途必要（`original/` は Shift-JIS、gitignore対象）。
 - `<speed>` の方言差（2003=遅延フレーム[負=最速] / 2010=フレーム毎文字数）は `speedToCps(mode)` で切替可能。実ゲーム移植は既定 `fpc` を使用。
 - キーワードマッチは既定 `contains`（ブログ的）。`exact` に切替可能。
+
+---
+
+## Phase 2 実装メモ（2026-05-31）
+
+### 中核：`NMLHost` を PixiJS で実装した `PixiHost`
+Phase 1 の `NMLHost` 境界はそのままに、`DomHost`（プレーンDOM）を **`PixiHost`（PixiJS v8）に差し替え**。エンジン側は一切変更なし — 設計どおりHostの差し替えだけでレンダラーが乗った。`NMLExecutor` が `PixiHost` を駆動し、共有 ticker が Typewriter とキャラクターアニメを毎フレーム更新する。
+
+```
+PixiHost.create(rootEl) → await app.init() (v8は非同期) → シーングラフ構築
+  imageLayer (＜image＞レイヤー) ▶ RoomRenderer ▶ Character ▶ UI(Title/LifeMeter/TextBox)
+  + DOMオーバーレイ（＜input＞/＜option＞のフォーム）
+```
+
+### コンポーネント（`src/renderer/`）
+| ファイル | 役割 | テスト |
+|---|---|---|
+| `PixiHost.ts` | `NMLHost`実装。`<image>`レイヤー合成+GSAPフェード、発話/待機での自動アニメ、入力/選択肢のDOMオーバーレイ | ブラウザ検証 |
+| `character/AnimationSystem.ts` | **純粋**な状態機械（idle/talk/glad/sad）+ NMLアニメ名マッピング | ✅ vitest |
+| `character/Character.ts` | 手続き的キャラ描画（AnimationSystem駆動・口パク/跳ね/うつむき） | ブラウザ |
+| `room/IsometricGrid.ts` | **純粋**なアイソメトリック座標変換（投影/逆投影/深度/タイル多角形） | ✅ vitest |
+| `room/RoomRenderer.ts` ・ `ItemSprite.ts` | アイソメ床グリッド + 深度ソートしたアイテム配置 | ブラウザ |
+| `ui/TextBox.ts` | PixiJS会話ボックス + Typewriter（tickerが駆動）+ クリックインジケータ | ブラウザ |
+| `ui/LifeMeter.ts` | 精神力バー + 数値 + `<lifetext>`メッセージ | ブラウザ |
+| `assets/assetPaths.ts` | **純粋**なパス解決（key/URL/拡張子/SWF判定） | ✅ vitest |
+| `assets/AssetResolver.ts` | NML `src`→Pixi表示物。既定プレースホルダモード（404を出さずコンソール清潔） | ブラウザ |
+
+> **設計方針**: 純粋ロジック（座標・アニメ状態・パス）はpixiを一切importせずnodeでユニットテスト。Pixi依存（canvas/WebGL）はブラウザのスクリーンショットで検証。テスト計55件。
+>
+> **アセット未変換のためプレースホルダ運用**: 実画像/音声（SWF・JPG）は未変換。`AssetResolver`は既定で**ネットワークに行かず**ラベル付きプレースホルダを返す（404ノイズ回避）。`<image>`はレイヤー名を表示。パイプライン完成後 `new AssetResolver({ tryLoad:true, baseUrl })` で実画像に切替。キャラも手続き的（実スプライト変換で差替）。
+
+### 検証済み（2026-05-31・ブラウザE2E）
+タイトル/精神力メーター/`<image>`プレースホルダ（GSAPフェードin）/アイソメ部屋グリッド/手続き的キャラ/Typewriterを描画。フレッシュ起動で最初の`<click>`で正しく停止（待機がブロック）。クリック送り→`<clear>`→自由`<input>`→送信→`<get>`補間（「アキ」）→`<anim glad>`→`<life +20>`+`<lifetext>`メッセージ→`<option>`選択→goto/label→`<life +15>`(精神力85)→`<end>`「— おわり —」。コンソールエラーなし。
+
+### Phase 3 への申し送り
+- `<input>`/`<option>` は最小DOMオーバーレイ。Phase 3 のブログエディタ（NML入力）UIへ発展させる。
+- `RoomRenderer.placeItem()` は実装済みだがアイテム配置UI（ドラッグ等）は未。部屋デコレーションUIで使う。
+- `LifeMeter` は起動直後 `startLife` を反映せず初回 `<life>` で更新（軽微・必要なら初期化フックを追加）。
+- 実アセット差し込み（`tryLoad:true`）とSWF変換パイプラインは引き続き別タスク。
