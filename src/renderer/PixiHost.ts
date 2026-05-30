@@ -11,7 +11,7 @@
  * Construct via the async factory: `const host = await PixiHost.create(rootEl)`.
  */
 
-import { Application, Container, Text } from 'pixi.js';
+import { Application, Container, Graphics, Text } from 'pixi.js';
 import { gsap } from 'gsap';
 import { AssetResolver } from './assets/AssetResolver';
 import { Character } from './character/Character';
@@ -27,6 +27,8 @@ const HEIGHT = 540;
 
 export interface PixiHostOptions {
   assets?: AssetResolver;
+  /** invoked on the NML <item> tag (e.g. to update an inventory) */
+  onItem?: (type: string, action: string) => void;
 }
 
 export class PixiHost implements NMLHost {
@@ -46,15 +48,18 @@ export class PixiHost implements NMLHost {
 
   private lifeText: LifeText = {};
   private waiter: (() => void) | null = null;
+  private readonly onItemCb: ((type: string, action: string) => void) | undefined;
+  private readonly keydownHandler: (e: KeyboardEvent) => void;
 
   private constructor(app: Application, root: HTMLElement, opts: PixiHostOptions) {
     this.app = app;
     this.assets = opts.assets ?? new AssetResolver();
+    this.onItemCb = opts.onItem;
 
     // wrapper holds the canvas + a DOM overlay for inputs/choices
     const wrapper = document.createElement('div');
     wrapper.className = 'nml-wrapper';
-    wrapper.style.cssText = `position:relative;width:${WIDTH}px;height:${HEIGHT}px;max-width:100%;`;
+    wrapper.style.cssText = `position:relative;width:100%;max-width:${WIDTH}px;aspect-ratio:${WIDTH}/${HEIGHT};margin:0 auto;`;
     app.canvas.style.cssText = 'display:block;width:100%;height:100%;border-radius:12px;';
     wrapper.appendChild(app.canvas);
     this.overlay = document.createElement('div');
@@ -105,11 +110,12 @@ export class PixiHost implements NMLHost {
 
     // click / key to advance (skip typing, then release the active wait)
     app.canvas.addEventListener('click', () => this.advance());
-    window.addEventListener('keydown', (e) => {
+    this.keydownHandler = (e: KeyboardEvent) => {
       const tag = (document.activeElement?.tagName ?? '').toLowerCase();
       if (tag === 'input' || tag === 'textarea') return; // don't steal typing
       if (e.key === 'Enter' || e.key === ' ') this.advance();
-    });
+    };
+    window.addEventListener('keydown', this.keydownHandler);
   }
 
   static async create(root: HTMLElement, opts: PixiHostOptions = {}): Promise<PixiHost> {
@@ -305,6 +311,7 @@ export class PixiHost implements NMLHost {
   }
 
   item(type: string, action: string): void {
+    this.onItemCb?.(type, action);
     this.status(`item: ${type} (${action})`);
   }
 
@@ -323,6 +330,44 @@ export class PixiHost implements NMLHost {
     box.className = 'nml-controls';
     this.overlay.appendChild(box);
     return box;
+  }
+
+  // --- Phase 3 integration (room decoration + lifecycle) ---
+
+  /** Release any pending click/blank wait and finish current typing, so a new
+   *  NML run can take over (used when the player posts another blog entry). */
+  cancelWait(): void {
+    this.textBox.skip();
+    if (this.waiter) {
+      const w = this.waiter;
+      this.waiter = null;
+      this.textBox.showIndicator(false);
+      w();
+    }
+  }
+
+  /** Place a labelled item token on the isometric room grid. */
+  async addRoomItem(name: string, col: number, row: number): Promise<void> {
+    const token = new Container();
+    const g = new Graphics();
+    g.roundRect(-26, -46, 52, 46, 9)
+      .fill({ color: 0x3a2f56, alpha: 0.96 })
+      .stroke({ width: 1.5, color: 0x8a7bbf });
+    const label = new Text({
+      text: name,
+      style: { fontFamily: 'system-ui, sans-serif', fontSize: 12, fill: 0xe8e2f2, align: 'center' },
+    });
+    label.anchor.set(0.5);
+    label.position.set(0, -23);
+    token.addChild(g, label);
+    this.room.placeItem(token, col, row);
+  }
+
+  /** Tear down PixiJS + listeners (call on React unmount). */
+  destroy(): void {
+    window.removeEventListener('keydown', this.keydownHandler);
+    this.overlay.innerHTML = '';
+    this.app.destroy(true, { children: true });
   }
 }
 

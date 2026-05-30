@@ -1,0 +1,242 @@
+/* Phase 3 UI — cozy dark theme for the React shell around the PixiJS scene. */
+
+* {
+  box-sizing: border-box;
+}
+
+.app {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.app-header h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 0.18em;
+  color: #d8b4fe;
+}
+.app-sub {
+  font-size: 12px;
+  color: #6b6480;
+  letter-spacing: 0.1em;
+}
+
+.stage {
+  width: 100%;
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: #6b6480;
+}
+
+/* tabs */
+.tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #2a2440;
+  padding-bottom: 2px;
+}
+.tab {
+  padding: 9px 18px;
+  font-size: 14px;
+  color: #9a8fb8;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+}
+.tab:hover {
+  color: #cfc7dd;
+}
+.tab-active {
+  color: #e8e2f2;
+  border-bottom-color: #8a5cf6;
+}
+
+.panel {
+  min-height: 180px;
+}
+
+/* generic controls */
+.field {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.7;
+  border-radius: 10px;
+  border: 1px solid #3a3350;
+  background: #0d0a14;
+  color: #e8e2f2;
+  resize: vertical;
+  font-family: inherit;
+}
+.field:focus {
+  outline: none;
+  border-color: #5b4b86;
+}
+.btn {
+  padding: 10px 18px;
+  font-size: 15px;
+  cursor: pointer;
+  border-radius: 9px;
+  border: 1px solid #5b4b86;
+  background: #2a2140;
+  color: #e8e2f2;
+}
+.btn:hover {
+  background: #3a2f56;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn-primary {
+  background: #5b3fa6;
+  border-color: #7c5cd0;
+}
+.btn-primary:hover {
+  background: #6b4cc0;
+}
+
+/* blog */
+.blog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.blog-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.blog-hint {
+  font-size: 12px;
+  color: #6b6480;
+}
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.feed-empty {
+  color: #6b6480;
+  font-size: 13px;
+}
+.post {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(26, 22, 38, 0.6);
+  border: 1px solid #2a2440;
+}
+.post-text {
+  color: #cfc7dd;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.post-tag {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #b79be8;
+  background: #241b38;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* room / items */
+.room-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.item-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.item-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #4a4366;
+  background: #1b1726;
+  color: #e8e2f2;
+  cursor: pointer;
+  min-width: 96px;
+}
+.item-chip:hover {
+  background: #2a2140;
+}
+.item-chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.item-chip .note {
+  font-size: 11px;
+  color: #9a8fb8;
+}
+.item-chip .count {
+  font-size: 11px;
+  color: #b79be8;
+}
+
+/* gallery */
+.doors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+.door {
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  border: 1px solid #3a3350;
+  background: linear-gradient(160deg, #241f33, #15121c);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px;
+  cursor: pointer;
+  color: #cfc7dd;
+  position: relative;
+}
+.door:hover {
+  border-color: #5b4b86;
+}
+.door::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  width: 46%;
+  height: 58%;
+  border-radius: 6px 6px 0 0;
+  background: #0d0a14;
+  border: 1px solid #2a2440;
+}
+.door .door-name {
+  font-size: 13px;
+  z-index: 1;
+}
+.door .door-knob {
+  position: absolute;
+  top: 46%;
+  right: 32%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #b79be8;
+}
