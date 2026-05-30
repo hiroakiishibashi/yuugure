@@ -14,7 +14,8 @@
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { gsap } from 'gsap';
 import { AssetResolver } from './assets/AssetResolver';
-import { Character } from './character/Character';
+import { PixelCharacter } from './character/PixelCharacter';
+import { HOME_CHARACTER_ID } from '../game/characters';
 import { RoomRenderer } from './room/RoomRenderer';
 import { TextBox } from './ui/TextBox';
 import { LifeMeter } from './ui/LifeMeter';
@@ -40,7 +41,7 @@ export class PixiHost implements NMLHost {
   private readonly imageLayer = new Container();
   private readonly layers = new Map<number, Container>();
   private readonly room: RoomRenderer;
-  private readonly character: Character;
+  private readonly character: PixelCharacter;
   private readonly textBox: TextBox;
   private readonly lifeMeter: LifeMeter;
   private readonly titleText: Text;
@@ -75,8 +76,8 @@ export class PixiHost implements NMLHost {
     this.room = new RoomRenderer({ cols: 6, rows: 6, tileW: 66, tileH: 32 });
     this.room.view.position.set(WIDTH / 2, 250);
     this.imageLayer.position.set(WIDTH / 2, 210);
-    this.character = new Character();
-    this.character.view.position.set(WIDTH / 2, 312);
+    // The creature is the original pixel-art GIF, layered over the canvas.
+    this.character = new PixelCharacter(HOME_CHARACTER_ID);
 
     this.titleText = new Text({
       text: '',
@@ -98,13 +99,14 @@ export class PixiHost implements NMLHost {
     this.statusText.anchor.set(1, 0);
     this.statusText.position.set(WIDTH - 16, 18);
 
-    scene.addChild(this.imageLayer, this.room.view, this.character.view);
+    scene.addChild(this.imageLayer, this.room.view);
     scene.addChild(this.titleText, this.lifeMeter.view, this.textBox.view, this.statusText);
     app.stage.addChild(scene);
+    // the pixel-art creature lives in the DOM overlay, above the canvas
+    this.overlay.appendChild(this.character.el);
 
-    // shared ticker drives the typewriter + character animation
+    // shared ticker drives the typewriter (the GIF animates itself)
     app.ticker.add((ticker) => {
-      this.character.update(ticker.deltaMS);
       this.textBox.update(ticker.deltaMS);
     });
 
@@ -334,6 +336,11 @@ export class PixiHost implements NMLHost {
 
   // --- Phase 3 integration (room decoration + lifecycle) ---
 
+  /** Swap the on-screen creature (entering a different room). */
+  setCharacter(id: string): void {
+    this.character.setCharacter(id);
+  }
+
   /** Release any pending click/blank wait and finish current typing, so a new
    *  NML run can take over (used when the player posts another blog entry). */
   cancelWait(): void {
@@ -377,6 +384,16 @@ function injectStyles(): void {
   stylesInjected = true;
   const style = document.createElement('style');
   style.textContent = `
+    .nml-character {
+      position: absolute; left: 50%; top: 33%;
+      width: 35%; height: auto;
+      transform: translate(-50%, -50%);
+      image-rendering: pixelated;            /* keep the ドット絵 crisp when scaled */
+      pointer-events: none; user-select: none;
+      transition: filter .45s ease, transform .45s ease;
+    }
+    .nml-character[data-mood="glad"] { filter: brightness(1.18) saturate(1.25); transform: translate(-50%, -54%); }
+    .nml-character[data-mood="sad"]  { filter: brightness(0.78) saturate(0.65); transform: translate(-50%, -47%); }
     .nml-controls {
       position: absolute; left: 40px; right: 40px; bottom: 26px;
       display: flex; flex-wrap: wrap; gap: 10px; pointer-events: auto;

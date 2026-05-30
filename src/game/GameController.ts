@@ -85,6 +85,11 @@ export class GameController {
     return this.host.addRoomItem(name, col, row);
   }
 
+  /** Swap the on-screen creature (entering a different room). */
+  setCharacter(id: string): void {
+    this.host.setCharacter(id);
+  }
+
   // --- blog feed ---
 
   getPosts(): BlogPost[] {

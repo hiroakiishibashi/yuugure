@@ -1,42 +1,31 @@
 /**
- * DoorGallery - The ギャラリー tab: a wall of doors to other players' rooms
- * (mocked locally for now; real rooms arrive with the backend in Phase 4).
- * Visiting a door plays a short NML scene in the stage above.
+ * DoorGallery - The ギャラリー tab: each door is a different creature's room
+ * (realising "部屋ごとにキャラが入れ替わる"). Visiting swaps the on-screen
+ * pixel-art creature to that room's resident and plays a short scene.
+ * Doors show the creature's actual GIF as a pixel-art thumbnail.
  */
 
 import { useGame } from '../GameContext';
-
-interface Door {
-  id: string;
-  name: string;
-}
-
-const DOORS: Door[] = [
-  { id: 'd1', name: 'あおい' },
-  { id: 'd2', name: 'しずく' },
-  { id: 'd3', name: 'とおく' },
-  { id: 'd4', name: 'ゆきの' },
-  { id: 'd5', name: 'なまえなし' },
-  { id: 'd6', name: 'よあけ' },
-];
+import { GALLERY_ROOM_IDS, getCharacter, type CharacterDef } from '../../game/characters';
 
 export function DoorGallery(): JSX.Element {
   const game = useGame();
 
-  const visit = (door: Door): void => {
-    void game.runNML(
-      `<nml><clear><anim idle>${door.name}の　へや…\nだれも　いない　みたいだ\nまた　こよう<end></nml>`,
-    );
+  const visit = (c: CharacterDef): void => {
+    game.setCharacter(c.id);
+    void game.runNML(`<nml><clear><anim idle>${c.name}の　へや…\nそっと　はいってみよう<end></nml>`);
   };
+
+  const rooms = GALLERY_ROOM_IDS.map((id) => getCharacter(id)).filter((c): c is CharacterDef => !!c);
 
   return (
     <div>
       <p className="blog-hint">だれかの　へやの　とびら（クリックで　おとずれる）</p>
       <div className="doors">
-        {DOORS.map((door) => (
-          <button key={door.id} type="button" className="door" onClick={() => visit(door)}>
-            <span className="door-knob" />
-            <span className="door-name">{door.name}</span>
+        {rooms.map((c) => (
+          <button key={c.id} type="button" className="door" onClick={() => visit(c)}>
+            <img className="door-thumb" src={c.gif} alt="" draggable={false} />
+            <span className="door-name">{c.name}</span>
           </button>
         ))}
       </div>

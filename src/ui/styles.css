@@ -209,34 +209,22 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px;
   cursor: pointer;
   color: #cfc7dd;
-  position: relative;
 }
 .door:hover {
   border-color: #5b4b86;
+  background: linear-gradient(160deg, #2c2640, #1a1626);
 }
-.door::before {
-  content: '';
-  position: absolute;
-  top: 14px;
-  width: 46%;
-  height: 58%;
-  border-radius: 6px 6px 0 0;
-  background: #0d0a14;
-  border: 1px solid #2a2440;
+.door .door-thumb {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  image-rendering: pixelated; /* keep the creature's ドット絵 crisp */
 }
 .door .door-name {
   font-size: 13px;
-  z-index: 1;
-}
-.door .door-knob {
-  position: absolute;
-  top: 46%;
-  right: 32%;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #b79be8;
 }

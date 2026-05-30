@@ -371,3 +371,22 @@ main.tsx → <GameProvider>(GameController.create→PixiHost) → <App>(tabs)
 - `DoorGallery` はローカルmock。実ユーザーの部屋一覧 API へ。
 - `<makeuser>`/`<login>`/`<set global>` は `PixiHost`/`GlobalState` のスタブ。JWT認証 + グローバル変数 API を実装。
 - ブログ本文そのものの保存・他プレイヤー閲覧（`BlogFeed` の拡張）。
+
+---
+
+## ドット絵アセット統合（2026-05-31・Phase 4 の前に実施）
+
+### 手続き的キャラ → オリジナルのドット絵GIFアニメに差し替え
+Phase 2 の手続き的キャラ（`Character.ts`、青い塊）を、オリジナル版の **のけもの ドット絵GIF** に置き換えた。
+
+- **アセット出自**: `original/method/夕暮れの部屋キャラクター/`（= `method/GIF/` と同一・重複）。`{id}_idoling[N].gif` 形式、200×200、**透過(bgra)・アニメ済み(16〜40フレーム)・ドット絵**。`-1`/`-2` 接尾辞は完全な重複（無視）。状態はほぼ全て idle（talk/glad/sad は Flash `.fla`/`.swf` 内で、抽出は非現実的）。
+- **パイプライン**: 各キャラの基底GIFを `public/characters/{id}.gif` に**コピー**（33体・約1.1MB）。Vite が `public/` を dist 直下へ配信・コピー。`original/` は gitignore のままだが `public/characters/` は**追跡対象＝コミットされる**（ロスレスなゲームアセット）。
+- **レジストリ** `src/game/characters.ts`（純粋・テスト）: 33体の `{id, name(ひらがな), gif}`、`HOME_CHARACTER_ID`、ギャラリー用 `GALLERY_ROOM_IDS`。テストは `public/characters/` に実ファイルが在ることを検証（レジストリ⇔アセットのdrift検出）。
+- **表示** `src/renderer/character/PixelCharacter.ts`: PixiJS canvas の上に重ねた **DOM `<img>`**。理由＝アニメGIFをブラウザがネイティブ再生（完全再現）し、`image-rendering: pixelated` でドット絵が拡大しても crisp。フレーム抽出不要・差し替えは `img.src` 変更のみ。`AnimationSystem` で論理状態（NML `<anim>`）を追跡し、glad/sad は同一アートに CSS フィルタ（明度/彩度）で気分付け。クリックは透過（`pointer-events:none`）で canvas に届く。
+- **部屋ごとにキャラ入れ替え**: `GameController.setCharacter(id)` → `PixiHost.setCharacter` → `PixelCharacter.setCharacter`。`DoorGallery` は各ドア＝1キャラの部屋（ドット絵サムネイル表示）。訪問で `setCharacter` + 訪問シーン再生。
+
+### 既知の制約 / Phase 4以降
+- 利用可能GIFは idle のみ。talk/glad/sad は idle アニメ＋CSS気分フィルタで代替（多くのキャラは口が無い抽象生物なので破綻しない）。本来の talk/glad/sad を出すには `.swf`/`.fla` のデコンパイル抽出が別途必要。
+- 部屋の背景JPG（`<image>` 用 haikyo 等）は `original/` 内に見当たらず未統合。`AssetResolver` の `tryLoad:true` 経路は実装済みなので、変換後に差し込み可能。
+- `noke01〜19.psd` はキャラのドット絵ソース（追加キャラ起こしに使える）。
+- 検証: 起動時 `はな`、ギャラリーで `だいふく` 等を訪問→ステージのキャラが実際に入れ替わる（`img.src=/characters/daifuku.gif`）。ピクセルは crisp、コンソールエラーなし。テスト計69件 pass。
