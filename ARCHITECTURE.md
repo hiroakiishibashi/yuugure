@@ -158,12 +158,13 @@ src/
 
 ## 開発フェーズ
 
-### Phase 1: NMLエンジン（コア）
-- [ ] NMLParser実装（XMLパーサー）
-- [ ] NMLExecutor実装（全タグ対応）
-- [ ] テキスト表示エンジン（タイプライター効果）
-- [ ] ローカル変数・条件分岐
-- [ ] ブログ入力 → キーワードマッチング
+### Phase 1: NMLエンジン（コア） ✅ 完了（2026-05-30）
+- [x] NMLParser実装（**カスタム** tokenizer + parser。下記「実装メモ」参照）
+- [x] NMLExecutor実装（全タグ対応・コンパイル + 非同期ランタイム + Hostインターフェース）
+- [x] テキスト表示エンジン（Typewriter — フレームワーク非依存のタイプライター）
+- [x] ローカル変数・条件分岐（LocalState / `<if><else>` / `<goto><label>`）
+- [x] ブログ入力 → キーワードマッチング（`<input><key>` → ラベルジャンプ）
+- [x] バリデーター（NMLValidator）/ グローバル変数の抽象化（GlobalState）/ DOMデモ + テスト38件
 
 ### Phase 2: レンダラー
 - [ ] PixiJSセットアップ
@@ -221,4 +222,69 @@ src/
 | バックエンド | Supabase | Auth + DB + API all-in-one |
 | モバイル | Capacitor | React → iOS/Android |
 | PC | PWA（または Electron） | ブラウザから配布可能 |
-| NML解析 | fast-xml-parser | 軽量XMLパーサー |
+| NML解析 | **カスタム tokenizer/parser**（自作） | NMLは整形式XMLではないため標準XMLパーサーでは解析不可（後述） |
+
+---
+
+## Phase 1 実装メモ（2026-05-30）
+
+### なぜ fast-xml-parser を使わず自作パーサーにしたか
+当初 `fast-xml-parser` を想定していたが、実際のNMLスクリプト（`original/samples/*.nml`、Shift-JIS）を調査した結果、**NMLは整形式XMLではない**ことが判明した。標準XMLパーサーでは実ファイルを読めない:
+
+1. **voidタグが閉じられない**: `<title value="x">` の後に地の文が続き `</title>` は来ない。XMLパーサーは以降全体を `<title>` の子として入れ子にしてしまう。
+2. **位置引数（省略記法）**: `<goto "load_ok">` `<a 1>` `<blank 30>` `<anim idle>` — 属性名のない引数はXMLとして不正。
+3. **`<else>` は単独マーカー**: `<if>…<else>…</if>` であり `<else>…</else>` ではない。
+4. **コメントにダッシュ多用**: `<!------ タイトル ------>`。
+5. **`<option>` 本文は独自サブ文法**: `text >> action >> power;` 行ベース。
+
+→ 手書きの quote-aware tokenizer + lenient parser を実装。エラーは例外でなく診断（diagnostics）として収集する（20年前の手書きスクリプトのため寛容に）。**方言の和集合**をサポート: 2003年版（のけものがたり: `<label>/<goto>/<input><key>`）と 2010年版（仕様書: `<a N>/<goto N>/<option>/<br>/bareword引数`）。
+
+### アーキテクチャ（フラット命令列モデル）
+NMLは `goto`/`label` がブロック境界を跨ぐ逐次スクリプトなので、AST木を直接歩くのではなく**フラットな命令列にコンパイル**する。`<if>/<else>` は条件ジャンプに lower し、全 label/anchor を命令インデックスに解決（`compileNML`）。ランタイムはプログラムカウンタ方式で、`<click>/<blank>/<input>/<option>` は **Hostが解決するまで await で中断**する非同期実行。
+
+```
+parseNML(utf8) → NMLProgram(AST)
+   → validateNML(program) → 診断
+   → compileNML(program) → CompiledProgram(命令列)
+   → new NMLExecutor(host).run(program) → RunResult
+```
+
+`NMLHost` がレンダラー/UI境界。Phase 1 では `DomHost`（プレーンDOM + Typewriter）と `RecordingHost`（テスト用ヘッドレス）を提供。**Phase 2 で PixiJS 実装の NMLHost に差し替えるだけ**でよい。
+
+> 注: タグ実装は当初案の `tags/TextTags.ts` 等7ファイル分割ではなく、**レジストリ駆動**（`tags/TagSpec.ts` 一元定義 + Executorのディスパッチ）に集約した。タグ追加 = TagSpecに1エントリ追加。
+
+### ファイル構成（実装済み）
+```
+src/engine/nml/
+├── NMLTypes.ts        # 全型定義（AST・命令・診断・LifeChange等）
+├── tags/TagSpec.ts    # タグレジストリ（void/block/marker・位置引数マップ・値パーサ）
+├── NMLParser.ts       # tokenizer + parser（中核）
+├── NMLValidator.ts    # 静的検証（未定義ラベル・必須属性・未知タグ等）
+├── NMLExecutor.ts     # コンパイラ + 非同期ランタイム + NMLHostインターフェース
+├── Typewriter.ts      # フレームワーク非依存のタイプライター（時間→可視文字数）
+├── hosts/RecordingHost.ts  # テスト用ヘッドレスHost
+├── index.ts           # 公開API barrel
+└── *.test.ts          # vitest 38件（parser/executor/validator/typewriter）
+src/engine/state/
+├── LocalState.ts      # セッション変数ストア（文字列・変更通知）
+└── GlobalState.ts     # サーバー永続変数の抽象（InMemory実装 + Phase4でSupabase差替）
+src/renderer/ui/DomHost.ts  # Phase1 DOMデモHost（PixiJS前の暫定）
+src/main.ts            # 埋め込みデモNMLを実行するエントリ
+```
+
+### 開発コマンド
+```bash
+npm install        # 初回のみ
+npm test           # vitest（38件）
+npm run dev        # Vite開発サーバー（デモ）
+npm run build      # tsc --noEmit 型チェック + 本番ビルド
+```
+
+### 検証済み（2026-05-30）
+型チェック clean / テスト38件 pass / 本番ビルド成功 / ブラウザデモでエンドツーエンド動作確認（タイトル・タイプライター[全角空白&改行保持]・クリック送り・clear・自由入力→変数保存→`<get>`補間。`<if><else>`・life・`<input><key>`ルーティング・goto/labelはユニットテストで網羅）。
+
+### Phase 2 への申し送り
+- `<image>/<preload>/<anim>` 等のアセット系は Host で**ログ出力するだけ**の暫定実装。PixiJS Host で実描画する。
+- SWF音声/アニメ → MP3/OGG・スプライト変換のアセットパイプラインが別途必要（`original/` は Shift-JIS、gitignore対象）。
+- `<speed>` の方言差（2003=遅延フレーム[負=最速] / 2010=フレーム毎文字数）は `speedToCps(mode)` で切替可能。実ゲーム移植は既定 `fpc` を使用。
+- キーワードマッチは既定 `contains`（ブログ的）。`exact` に切替可能。
