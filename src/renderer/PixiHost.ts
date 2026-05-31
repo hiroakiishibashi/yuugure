@@ -25,6 +25,7 @@ import type { LifeText, ResolvedChoice } from '../engine/nml/NMLTypes';
 const FPS = 15;
 const WIDTH = 720;
 const HEIGHT = 540;
+const BACKDROP_WIDTH = 520; // salvaged backgrounds are 300px; scale up to fill the scene
 
 export interface PixiHostOptions {
   assets?: AssetResolver;
@@ -54,7 +55,9 @@ export class PixiHost implements NMLHost {
 
   private constructor(app: Application, root: HTMLElement, opts: PixiHostOptions) {
     this.app = app;
-    this.assets = opts.assets ?? new AssetResolver();
+    // Salvaged room art lives under public/assets/ — load it for real, falling
+    // back to a labelled placeholder only when an asset is genuinely missing.
+    this.assets = opts.assets ?? new AssetResolver({ tryLoad: true, baseUrl: '/assets' });
     this.onItemCb = opts.onItem;
 
     // wrapper holds the canvas + a DOM overlay for inputs/choices
@@ -75,7 +78,7 @@ export class PixiHost implements NMLHost {
     const scene = new Container();
     this.room = new RoomRenderer({ cols: 6, rows: 6, tileW: 66, tileH: 32 });
     this.room.view.position.set(WIDTH / 2, 250);
-    this.imageLayer.position.set(WIDTH / 2, 210);
+    this.imageLayer.position.set(WIDTH / 2, 232);
     // The creature is the original pixel-art GIF, layered over the canvas.
     this.character = new PixelCharacter(HOME_CHARACTER_ID);
 
@@ -240,6 +243,9 @@ export class PixiHost implements NMLHost {
     }
     // state === 'in'
     const display = await this.assets.load(cmd.src ?? '');
+    // scale the salvaged 300px backdrop up to fill the scene behind the creature
+    const w = display.width || 300;
+    if (w > 0) display.scale.set(BACKDROP_WIDTH / w);
     const layer = new Container();
     layer.addChild(display);
     layer.alpha = 0;

@@ -14,7 +14,10 @@ export function DoorGallery(): JSX.Element {
 
   const visit = (c: CharacterDef): void => {
     game.setCharacter(c.id);
-    void game.runNML(`<nml><clear><anim idle>${c.name}の　へや…\nそっと　はいってみよう<end></nml>`);
+    void game.runNML(
+      `<nml><image src="room/include/haikyo.jpg" level="1" state="in" time="10">` +
+        `<clear><anim idle>${c.name}の　へや…\nそっと　はいってみよう<end></nml>`,
+    );
   };
 
   const rooms = GALLERY_ROOM_IDS.map((id) => getCharacter(id)).filter((c): c is CharacterDef => !!c);

@@ -74,10 +74,11 @@ export class GameController {
     await this.runNML(blogToNML(trimmed));
   }
 
-  /** A short greeting played when the room first opens. */
+  /** A short greeting played when the room first opens (with a real backdrop). */
   async intro(): Promise<void> {
     await this.runNML(
-      `<nml><anim idle>ようこそ　…　この　へやへ\nブログを　かくと　ぼくが　こたえるよ<click><end></nml>`,
+      `<nml><image src="room/include/rouka.jpg" level="1" state="in" time="12">` +
+        `<anim idle>ようこそ　…　この　へやへ\nブログを　かくと　ぼくが　こたえるよ<click><end></nml>`,
     );
   }
 
