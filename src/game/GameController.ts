@@ -15,6 +15,7 @@ import { PixiHost } from '../renderer/PixiHost';
 import { blogToNML, reactToBlog } from './blogReactions';
 import { ROOM_ITEMS, STARTER_ITEM_IDS, getRoomItem } from './roomItems';
 import { HOME_CHARACTER_ID } from './characters';
+import type { Resident } from './residents';
 import { SaveService, type SaveData } from './SaveService';
 
 const START_LIFE = 50;
@@ -35,6 +36,9 @@ export class GameController {
   private posts: BlogPost[] = [];
   private nextId = 1;
   private booted = false;
+  /** the player's own creature (persisted) — distinct from whoever's room is on
+   *  screen while visiting, so visiting never overwrites the player's save */
+  private homeCharacterId = HOME_CHARACTER_ID;
   private readonly postListeners = new Set<PostsListener>();
 
   private constructor(
@@ -115,10 +119,25 @@ export class GameController {
     return this.host.addRoomItem(def?.name ?? id, col, row, def?.art);
   }
 
-  /** Swap the on-screen creature (entering a different room). */
-  setCharacter(id: string): void {
-    this.host.setCharacter(id);
-    this.persist();
+  /** Enter another resident's room: their creature appears, decorates with their
+   *  furniture, and greets you. Transient — does NOT change the player's save. */
+  async visitRoom(resident: Resident): Promise<void> {
+    this.host.clearRoomItems();
+    this.host.setCharacter(resident.characterId);
+    this.host.setRoomTitle(`${resident.roomNo}号室　${resident.name}さんの へや`);
+    (resident.items ?? []).forEach((id, i) => {
+      const def = getRoomItem(id);
+      void this.host.addRoomItem(def?.name ?? id, i % 5, Math.floor(i / 5) % 5, def?.art);
+    });
+    const body = resident.lines.join('\n');
+    await this.runNML(`<nml><clear>${body}\n<anim idle><end></nml>`);
+  }
+
+  /** Return to the player's own room. */
+  goHome(): void {
+    this.host.clearRoomItems();
+    this.host.setCharacter(this.homeCharacterId);
+    this.host.setRoomTitle('じぶんの　へや');
   }
 
   // --- blog feed ---
@@ -155,7 +174,9 @@ export class GameController {
     this.posts = [...(s.posts ?? [])];
     this.nextId = this.posts.reduce((m, p) => Math.max(m, p.id), 0) + 1;
     this.notifyPosts();
-    this.host.setCharacter(s.character || HOME_CHARACTER_ID);
+    this.homeCharacterId = s.character || HOME_CHARACTER_ID;
+    this.host.setCharacter(this.homeCharacterId);
+    this.host.setRoomTitle('じぶんの　へや');
   }
 
   /** Snapshot + queue a save (debounced). No-op until boot has restored state. */
@@ -164,7 +185,7 @@ export class GameController {
     const data: SaveData = {
       v: 1,
       life: this.executor.life,
-      character: this.host.characterId,
+      character: this.homeCharacterId, // the player's own creature, not a visited room's
       vars: this.executor.local.snapshot(),
       posts: this.posts,
       inventory: this.items.snapshot(),

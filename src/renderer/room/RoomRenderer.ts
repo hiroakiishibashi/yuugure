@@ -62,6 +62,12 @@ export class RoomRenderer {
     return item;
   }
 
+  /** Remove all placed items (e.g. when switching rooms). */
+  clearItems(): void {
+    this.itemsLayer.removeChildren();
+    this.items.length = 0;
+  }
+
   /** Re-append item views in ascending depth so nearer items draw last (on top). */
   private resort(): void {
     this.itemsLayer.removeChildren();

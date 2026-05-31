@@ -215,23 +215,60 @@
   color: #b79be8;
 }
 
-/* gallery */
-/* gallery — after the original "DOOR SELECT" screen */
-.gallery-head {
+/* apartment door-select — after the original 青空アパート screen */
+.apt-bar {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #20344e, #182838);
+  border: 1px solid #3c5a7e;
+  margin-bottom: 8px;
 }
-.gallery-title {
-  font-size: 14px;
-  letter-spacing: 0.22em;
-  color: #9fc0e8;
-  font-weight: 600;
+.apt-logo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #bcd8f4;
 }
-.gallery-sub {
+.apt-floor {
+  font-size: 13px;
+  color: #8fb0d4;
+  font-variant-numeric: tabular-nums;
+}
+.apt-nav {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.apt-btn {
+  padding: 6px 12px;
   font-size: 12px;
-  color: #6b6480;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid #3c5a7e;
+  background: #16222f;
+  color: #bcd0e8;
+}
+.apt-btn:hover:not(:disabled) {
+  background: #233650;
+}
+.apt-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.apt-home {
+  border-color: #6f5ba0;
+  background: #2a2140;
+  color: #d8c8f4;
+}
+.apt-hint {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #6b7a90;
+  margin: 0 0 10px;
 }
 .doors {
   display: grid;
@@ -283,4 +320,13 @@
   font-size: 13px;
   text-align: center;
   color: #cfe0f2;
+}
+.door .door-title {
+  font-size: 11px;
+  text-align: center;
+  color: #8fb0d4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }

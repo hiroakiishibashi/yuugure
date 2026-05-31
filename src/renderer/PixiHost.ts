@@ -26,8 +26,11 @@ import type { LifeText, ResolvedChoice } from '../engine/nml/NMLTypes';
 const FPS = 15;
 const WIDTH = 720;
 const HEIGHT = 540;
-const BACKDROP_WIDTH = 520; // salvaged backgrounds are 300px; scale up to fill the scene
-const ROOM_ITEM_SIZE = 72; // furniture sprites scaled so their longest side ≈ this (px)
+const BACKDROP_WIDTH = 520; // photo backdrops (not pixel art) — scaled smoothly to fill
+// Pixel art is only crisp at INTEGER scale + nearest-neighbor; a single factor
+// keeps every sprite at the same pixel density (no per-asset "fit" distortion).
+const PIXEL_SCALE = 2;
+const CHARACTER_FRAME = 200; // creature GIFs are 200×200
 
 export interface PixiHostOptions {
   assets?: AssetResolver;
@@ -361,6 +364,16 @@ export class PixiHost implements NMLHost {
     return this.character.characterId;
   }
 
+  /** Set the room header (e.g. "A501号室　○○さんの へや" / "じぶんの へや"). */
+  setRoomTitle(text: string): void {
+    this.titleText.text = text;
+  }
+
+  /** Remove all placed furniture (when switching rooms). */
+  clearRoomItems(): void {
+    this.room.clearItems();
+  }
+
   /** Begin interrupting the current scene: finish typing, release any pending
    *  wait, and short-circuit any wait the unwinding scene reaches next. */
   cancelWait(): void {
@@ -388,8 +401,7 @@ export class PixiHost implements NMLHost {
         const texture = await Assets.load(art);
         texture.source.scaleMode = 'nearest'; // keep the ドット絵 crisp when scaled
         const sprite = new Sprite(texture);
-        const longest = Math.max(sprite.width, sprite.height) || 1;
-        sprite.scale.set(ROOM_ITEM_SIZE / longest);
+        sprite.scale.set(PIXEL_SCALE); // uniform integer scale (no per-item fit distortion)
         sprite.anchor.set(0.5, 1); // base rests on the tile
         display = sprite;
       } catch {
@@ -428,18 +440,20 @@ let stylesInjected = false;
 function injectStyles(): void {
   if (stylesInjected) return;
   stylesInjected = true;
+  // creature frame shown at the same integer pixel density as the furniture
+  const charPct = ((CHARACTER_FRAME * PIXEL_SCALE) / WIDTH) * 100;
   const style = document.createElement('style');
   style.textContent = `
     .nml-character {
-      position: absolute; left: 50%; top: 33%;
-      width: 35%; height: auto;
-      transform: translate(-50%, -50%);
+      position: absolute; left: 50%; top: 62%;
+      width: ${charPct.toFixed(2)}%; height: auto;
+      transform: translate(-50%, -100%);     /* bottom-centre, standing on the floor */
       image-rendering: pixelated;            /* keep the ドット絵 crisp when scaled */
       pointer-events: none; user-select: none;
       transition: filter .45s ease, transform .45s ease;
     }
-    .nml-character[data-mood="glad"] { filter: brightness(1.18) saturate(1.25); transform: translate(-50%, -54%); }
-    .nml-character[data-mood="sad"]  { filter: brightness(0.78) saturate(0.65); transform: translate(-50%, -47%); }
+    .nml-character[data-mood="glad"] { filter: brightness(1.18) saturate(1.25); transform: translate(-50%, -106%); }
+    .nml-character[data-mood="sad"]  { filter: brightness(0.78) saturate(0.65); transform: translate(-50%, -95%); }
     .nml-controls {
       position: absolute; left: 40px; right: 40px; bottom: 26px;
       display: flex; flex-wrap: wrap; gap: 10px; pointer-events: auto;

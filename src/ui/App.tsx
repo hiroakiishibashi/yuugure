@@ -14,7 +14,7 @@ type Tab = 'blog' | 'room' | 'gallery';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'blog', label: 'ブログ' },
   { id: 'room', label: 'へや' },
-  { id: 'gallery', label: 'ギャラリー' },
+  { id: 'gallery', label: 'アパート' },
 ];
 
 export function App(): JSX.Element {
