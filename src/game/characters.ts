@@ -1,40 +1,42 @@
 /**
- * characters - Registry of the original pixel-art "のけもの" creatures.
+ * characters - Registry of the original pixel-art "のけもの" creatures, now
+ * driven by the per-action animations salvaged from the Flash SWFs.
  *
- * Each entry maps to an animated GIF copied from the original game art
- * (original/method/夕暮れの部屋キャラクター, 200×200, transparent, pixel-art),
- * now served from public/characters/{id}.gif. Only idle animations survived as
- * GIFs (talk/glad/sad were in the Flash sources), so a character has one GIF;
- * mood is conveyed by a CSS filter in PixelCharacter rather than a separate clip.
+ * Each creature has one animated GIF per available action under
+ * public/characters/{id}_{action}.gif (idle, talk, and — for some — joy, sad,
+ * angry, jump). Every creature has at least idle + talk (lip-sync). The set of
+ * available actions per id comes from the auto-generated manifest.
  *
  * Pure data (no PixiJS/React), so it is unit-testable.
  */
+
+import { CHARACTER_ACTIONS, type CharAction } from './characterManifest';
 
 export interface CharacterDef {
   id: string;
   /** display name (hiragana, matching the game's text style) */
   name: string;
-  /** served path to the animated pixel-art GIF */
-  gif: string;
+  /** actions that have a salvaged GIF (always includes 'idle' and 'talk') */
+  actions: CharAction[];
 }
 
-/** name readings for the creature ids (cosmetic, hiragana). */
+/** Hiragana readings for the creature ids. */
 const NAMES: Record<string, string> = {
   anaboushi: 'あなぼうし',
   ashinaga: 'あしなが',
   binzume: 'びんづめ',
   bonbori: 'ぼんぼり',
-  bou: 'ぼう',
+  bousan: 'ぼうさん',
   chazutsu: 'ちゃづつ',
   daifuku: 'だいふく',
   enbou: 'えんぼう',
+  fudousan: 'ふどうさん',
   fusen: 'ふうせん',
+  fuurinn: 'ふうりん',
   ganbunsan: 'がんぶんさん',
-  hana: 'はな',
   hanedama: 'はねだま',
   inanaki: 'いななき',
   iwakurage: 'いわくらげ',
-  momotsu: 'ももつ',
   muda: 'むだ',
   nageki: 'なげき',
   nagi: 'なぎ',
@@ -42,26 +44,25 @@ const NAMES: Record<string, string> = {
   nuronuro: 'ぬろぬろ',
   okekamuri: 'おけかむり',
   semi: 'せみ',
+  sinatora: 'しなとら',
   teme: 'てめ',
   tofu: 'とうふ',
-  tokazuki: 'とかづき',
   tokkuri: 'とっくり',
   toudai: 'とうだい',
+  toukaduki: 'とうかづき',
   tsurigane: 'つりがね',
-  tsuruhashi: 'つるはし',
   uragawa: 'うらがわ',
   warabi: 'わらび',
   yotsude: 'よつで',
   yuragi: 'ゆらぎ',
 };
 
-/** Ids that have a GIF under public/characters/ (kept in sync with the asset copy). */
-export const CHARACTER_IDS: readonly string[] = Object.keys(NAMES);
+export const CHARACTER_IDS: readonly string[] = Object.keys(CHARACTER_ACTIONS);
 
 export const CHARACTERS: readonly CharacterDef[] = CHARACTER_IDS.map((id) => ({
   id,
   name: NAMES[id] ?? id,
-  gif: `/characters/${id}.gif`,
+  actions: CHARACTER_ACTIONS[id] ?? [],
 }));
 
 const BY_ID = new Map(CHARACTERS.map((c) => [c.id, c]));
@@ -70,20 +71,35 @@ export function getCharacter(id: string): CharacterDef | undefined {
   return BY_ID.get(id);
 }
 
-/** The creature that greets the player in their own room. */
-export const HOME_CHARACTER_ID = 'hana';
+export function hasAction(id: string, action: CharAction): boolean {
+  return (CHARACTER_ACTIONS[id] ?? []).includes(action);
+}
+
+/** Served GIF for a creature's action, falling back to idle when absent. */
+export function characterGif(id: string, action: CharAction = 'idle'): string {
+  const use = hasAction(id, action) ? action : 'idle';
+  return `/characters/${id}_${use}.gif`;
+}
+
+/** The creature that greets the player in their own room (richest animation set). */
+export const HOME_CHARACTER_ID = 'daifuku';
 
 /**
- * Doors shown in the gallery — each is a different creature's room, realising
- * "部屋ごとにキャラが入れ替わる". A curated, varied subset.
+ * Doors shown in the gallery — each is a different creature's room
+ * ("部屋ごとにキャラが入れ替わる"). Favours creatures with expressive actions,
+ * plus variety.
  */
 export const GALLERY_ROOM_IDS: readonly string[] = [
   'daifuku',
-  'iwakurage',
+  'enbou',
+  'ashinaga',
   'nasu',
-  'fusen',
+  'fudousan',
+  'ganbunsan',
+  'iwakurage',
   'tofu',
   'semi',
   'toudai',
   'tsurigane',
+  'yotsude',
 ];

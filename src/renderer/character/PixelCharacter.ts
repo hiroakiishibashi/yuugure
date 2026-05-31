@@ -1,18 +1,26 @@
 /**
  * PixelCharacter - The on-screen creature, rendered as the original animated
- * pixel-art GIF (200×200, transparent) via a DOM <img> layered over the PixiJS
- * canvas. Using the GIF directly preserves the ドット絵 perfectly (native
- * animation, `image-rendering: pixelated`) and makes per-room swaps trivial —
- * just change the image source.
+ * pixel-art GIFs salvaged from the Flash SWFs. A DOM <img> is layered over the
+ * PixiJS canvas so the GIF animates natively and `image-rendering: pixelated`
+ * keeps the ドット絵 crisp.
  *
- * Only idle GIFs survived from the original art, so the same clip plays for all
- * states; mood (glad/sad) is suggested with a CSS filter via the `data-mood`
- * attribute rather than a separate animation. The AnimationSystem still tracks
- * the logical state (idle/talk/glad/sad) coming from NML <anim>.
+ * Now state-aware: the logical animation state (idle/talk/glad/sad, from NML
+ * <anim> and the dialogue flow) maps to a per-action GIF (idle/talk/joy/sad),
+ * so the creature actually lip-syncs while talking and emotes on joy/sad.
+ * Creatures lacking a given action fall back to idle; a CSS `data-mood` filter
+ * still tints the fallback so the mood reads.
  */
 
 import { AnimationSystem, mapAnimName, type AnimState } from './AnimationSystem';
-import { getCharacter } from '../../game/characters';
+import { characterGif } from '../../game/characters';
+import type { CharAction } from '../../game/characterManifest';
+
+const STATE_TO_ACTION: Record<AnimState, CharAction> = {
+  idle: 'idle',
+  talk: 'talk',
+  glad: 'joy',
+  sad: 'sad',
+};
 
 export class PixelCharacter {
   readonly el: HTMLImageElement;
@@ -25,16 +33,12 @@ export class PixelCharacter {
     this.el.alt = '';
     this.el.draggable = false;
     this.setCharacter(initialCharacterId);
-    this.applyMood();
   }
 
-  /** Swap the whole creature (used when entering a different room). */
+  /** Swap the whole creature (entering a different room). */
   setCharacter(id: string): void {
-    if (id === this.charId) return;
-    const def = getCharacter(id);
-    if (!def) return;
     this.charId = id;
-    this.el.src = def.gif;
+    this.applyState();
   }
 
   get characterId(): string {
@@ -48,14 +52,18 @@ export class PixelCharacter {
 
   setState(state: AnimState): void {
     this.anim.setState(state);
-    this.applyMood();
+    this.applyState();
   }
 
   get state(): AnimState {
     return this.anim.current;
   }
 
-  private applyMood(): void {
+  private applyState(): void {
+    if (!this.charId) return;
+    const action = STATE_TO_ACTION[this.anim.current];
+    const src = characterGif(this.charId, action);
+    if (this.el.getAttribute('src') !== src) this.el.src = src;
     this.el.dataset.mood = this.anim.current;
   }
 }

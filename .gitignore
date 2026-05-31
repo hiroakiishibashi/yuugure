@@ -5,3 +5,6 @@ dist/
 *.local
 .DS_Store
 original/
+
+# Flash-salvage tooling (ffdec jar, dumps, extracted frames — large, reproducible via scripts/)
+.tools/
