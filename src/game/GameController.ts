@@ -13,6 +13,7 @@ import { NMLExecutor, type RunOptions } from '../engine/nml/NMLExecutor';
 import { ItemManager } from '../engine/items/ItemManager';
 import { PixiHost } from '../renderer/PixiHost';
 import { blogToNML, reactToBlog } from './blogReactions';
+import { ROOM_ITEMS, STARTER_ITEM_IDS, getRoomItem } from './roomItems';
 
 const START_LIFE = 50;
 
@@ -41,13 +42,16 @@ export class GameController {
     // seed the on-screen meter so it shows the starting value immediately
     host.changeLife({ value: START_LIFE, delta: 0, change: { kind: 'absolute', value: START_LIFE }, text: {} });
     // a few starter belongings so the room can be decorated right away
-    items.add('isu');
-    items.add('hana');
-    items.add('ranpu');
+    for (const id of STARTER_ITEM_IDS) items.add(id);
   }
 
   static async create(root: HTMLElement): Promise<GameController> {
-    const items = new ItemManager();
+    // Inventory catalogue = salvaged furniture (with art) + the NML "kagi" item.
+    const catalogue: Record<string, { id: string; name: string; art?: string }> = {
+      kagi: { id: 'kagi', name: 'カギ' },
+    };
+    for (const item of ROOM_ITEMS) catalogue[item.id] = { id: item.id, name: item.name, art: item.art };
+    const items = new ItemManager(catalogue);
     const host = await PixiHost.create(root, { onItem: (type, action) => items.apply(type, action) });
     return new GameController(host, items);
   }
@@ -82,8 +86,10 @@ export class GameController {
     );
   }
 
-  placeItem(name: string, col: number, row: number): Promise<void> {
-    return this.host.addRoomItem(name, col, row);
+  /** Place an inventory item on the room grid using its real pixel-art sprite. */
+  placeItem(id: string, col: number, row: number): Promise<void> {
+    const def = getRoomItem(id);
+    return this.host.addRoomItem(def?.name ?? id, col, row, def?.art);
   }
 
   /** Swap the on-screen creature (entering a different room). */

@@ -20,7 +20,7 @@ export function RoomView(): JSX.Element {
     const n = placedCount.current++;
     const col = n % 5;
     const row = Math.floor(n / 5) % 5;
-    await game.placeItem(entry.def.name, col, row);
+    await game.placeItem(entry.def.id, col, row);
     game.items.remove(entry.def.id);
   };
 

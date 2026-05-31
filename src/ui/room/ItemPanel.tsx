@@ -17,6 +17,7 @@ export function ItemPanel({
     <div className="item-grid">
       {items.map((entry) => (
         <button key={entry.def.id} type="button" className="item-chip" onClick={() => onPlace(entry)}>
+          {entry.def.art && <img className="item-art" src={entry.def.art} alt="" draggable={false} />}
           <strong>{entry.def.name}</strong>
           {entry.def.note && <span className="note">{entry.def.note}</span>}
           <span className="count">×{entry.count}</span>

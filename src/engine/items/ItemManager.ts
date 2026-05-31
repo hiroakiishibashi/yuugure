@@ -14,6 +14,8 @@ export interface ItemDef {
   name: string;
   /** short flavour / category */
   note?: string;
+  /** served path to the item's pixel-art sprite (room decoration) */
+  art?: string;
 }
 
 export interface InventoryEntry {

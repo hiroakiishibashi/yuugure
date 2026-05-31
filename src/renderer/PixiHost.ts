@@ -11,7 +11,7 @@
  * Construct via the async factory: `const host = await PixiHost.create(rootEl)`.
  */
 
-import { Application, Container, Graphics, Text } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Sprite, Text } from 'pixi.js';
 import { gsap } from 'gsap';
 import { AssetResolver } from './assets/AssetResolver';
 import { PixelCharacter } from './character/PixelCharacter';
@@ -26,6 +26,7 @@ const FPS = 15;
 const WIDTH = 720;
 const HEIGHT = 540;
 const BACKDROP_WIDTH = 520; // salvaged backgrounds are 300px; scale up to fill the scene
+const ROOM_ITEM_SIZE = 72; // furniture sprites scaled so their longest side ≈ this (px)
 
 export interface PixiHostOptions {
   assets?: AssetResolver;
@@ -359,8 +360,28 @@ export class PixiHost implements NMLHost {
     }
   }
 
-  /** Place a labelled item token on the isometric room grid. */
-  async addRoomItem(name: string, col: number, row: number): Promise<void> {
+  /** Place an item on the isometric room grid. With `art`, the real pixel-art
+   *  sprite is used (scaled, standing on the tile); otherwise a labelled token. */
+  async addRoomItem(name: string, col: number, row: number, art?: string): Promise<void> {
+    let display: Container | null = null;
+    if (art) {
+      try {
+        const texture = await Assets.load(art);
+        texture.source.scaleMode = 'nearest'; // keep the ドット絵 crisp when scaled
+        const sprite = new Sprite(texture);
+        const longest = Math.max(sprite.width, sprite.height) || 1;
+        sprite.scale.set(ROOM_ITEM_SIZE / longest);
+        sprite.anchor.set(0.5, 1); // base rests on the tile
+        display = sprite;
+      } catch {
+        display = null;
+      }
+    }
+    this.room.placeItem(display ?? this.itemToken(name), col, row);
+  }
+
+  /** Fallback labelled token when an item has no art. */
+  private itemToken(name: string): Container {
     const token = new Container();
     const g = new Graphics();
     g.roundRect(-26, -46, 52, 46, 9)
@@ -373,7 +394,7 @@ export class PixiHost implements NMLHost {
     label.anchor.set(0.5);
     label.position.set(0, -23);
     token.addChild(g, label);
-    this.room.placeItem(token, col, row);
+    return token;
   }
 
   /** Tear down PixiJS + listeners (call on React unmount). */
