@@ -94,6 +94,18 @@ export class ItemManager {
       .map((id) => ({ def: this.def(id), count: this.count(id) }));
   }
 
+  /** Current counts, for persistence. */
+  snapshot(): Record<string, number> {
+    return Object.fromEntries(this.counts);
+  }
+
+  /** Replace the inventory with saved counts. */
+  loadCounts(counts: Record<string, number>): void {
+    this.counts.clear();
+    for (const [id, n] of Object.entries(counts)) if (n > 0) this.counts.set(id, n);
+    this.emit();
+  }
+
   subscribe(fn: InventoryListener): () => void {
     this.listeners.add(fn);
     fn(this.list());

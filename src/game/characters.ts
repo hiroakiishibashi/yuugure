@@ -11,6 +11,7 @@
  */
 
 import { CHARACTER_ACTIONS, type CharAction } from './characterManifest';
+import { ASSET_BASE } from '../assetBase';
 
 export interface CharacterDef {
   id: string;
@@ -78,7 +79,7 @@ export function hasAction(id: string, action: CharAction): boolean {
 /** Served GIF for a creature's action, falling back to idle when absent. */
 export function characterGif(id: string, action: CharAction = 'idle'): string {
   const use = hasAction(id, action) ? action : 'idle';
-  return `/characters/${id}_${use}.gif`;
+  return `${ASSET_BASE}characters/${id}_${use}.gif`;
 }
 
 /** The creature that greets the player in their own room (richest animation set). */

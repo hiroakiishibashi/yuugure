@@ -16,6 +16,7 @@ import { gsap } from 'gsap';
 import { AssetResolver } from './assets/AssetResolver';
 import { PixelCharacter } from './character/PixelCharacter';
 import { HOME_CHARACTER_ID } from '../game/characters';
+import { ASSET_BASE } from '../assetBase';
 import { RoomRenderer } from './room/RoomRenderer';
 import { TextBox } from './ui/TextBox';
 import { LifeMeter } from './ui/LifeMeter';
@@ -51,6 +52,9 @@ export class PixiHost implements NMLHost {
 
   private lifeText: LifeText = {};
   private waiter: (() => void) | null = null;
+  /** while true, any host wait resolves immediately so an interrupted scene can
+   *  unwind even if it reaches a <click>/<blank> after cancelWait() ran */
+  private interrupting = false;
   private readonly onItemCb: ((type: string, action: string) => void) | undefined;
   private readonly keydownHandler: (e: KeyboardEvent) => void;
 
@@ -58,7 +62,7 @@ export class PixiHost implements NMLHost {
     this.app = app;
     // Salvaged room art lives under public/assets/ — load it for real, falling
     // back to a labelled placeholder only when an asset is genuinely missing.
-    this.assets = opts.assets ?? new AssetResolver({ tryLoad: true, baseUrl: '/assets' });
+    this.assets = opts.assets ?? new AssetResolver({ tryLoad: true, baseUrl: `${ASSET_BASE}assets` });
     this.onItemCb = opts.onItem;
 
     // wrapper holds the canvas + a DOM overlay for inputs/choices
@@ -175,6 +179,7 @@ export class PixiHost implements NMLHost {
   // --- NMLHost: pacing ---
 
   waitClick(): Promise<void> {
+    if (this.interrupting) return Promise.resolve();
     this.relaxToIdle();
     this.textBox.showIndicator(true);
     return new Promise((resolve) => {
@@ -186,6 +191,7 @@ export class PixiHost implements NMLHost {
   }
 
   waitBlank(frames: number): Promise<void> {
+    if (this.interrupting) return Promise.resolve();
     this.relaxToIdle();
     const ms = (Math.max(0, frames) / FPS) * 1000;
     return new Promise((resolve) => {
@@ -267,6 +273,7 @@ export class PixiHost implements NMLHost {
   // --- NMLHost: input / choices (DOM overlay) ---
 
   requestInput(variable: string): Promise<string> {
+    if (this.interrupting) return Promise.resolve('');
     this.relaxToIdle();
     this.textBox.showIndicator(false);
     return new Promise((resolve) => {
@@ -293,6 +300,7 @@ export class PixiHost implements NMLHost {
   }
 
   requestChoice(choices: ResolvedChoice[]): Promise<number> {
+    if (this.interrupting) return Promise.resolve(0);
     this.relaxToIdle();
     this.textBox.showIndicator(false);
     return new Promise((resolve) => {
@@ -348,9 +356,15 @@ export class PixiHost implements NMLHost {
     this.character.setCharacter(id);
   }
 
-  /** Release any pending click/blank wait and finish current typing, so a new
-   *  NML run can take over (used when the player posts another blog entry). */
+  /** The creature currently on screen (for persistence). */
+  get characterId(): string {
+    return this.character.characterId;
+  }
+
+  /** Begin interrupting the current scene: finish typing, release any pending
+   *  wait, and short-circuit any wait the unwinding scene reaches next. */
   cancelWait(): void {
+    this.interrupting = true;
     this.textBox.skip();
     if (this.waiter) {
       const w = this.waiter;
@@ -358,6 +372,11 @@ export class PixiHost implements NMLHost {
       this.textBox.showIndicator(false);
       w();
     }
+  }
+
+  /** Re-enable real waits for a freshly started scene (call before run()). */
+  beginRun(): void {
+    this.interrupting = false;
   }
 
   /** Place an item on the isometric room grid. With `art`, the real pixel-art

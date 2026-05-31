@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { useGame } from './GameContext';
 import { BlogPanel } from './blog/BlogPanel';
 import { RoomView } from './room/RoomView';
 import { DoorGallery } from './gallery/DoorGallery';
@@ -18,9 +19,15 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function App(): JSX.Element {
   const [tab, setTab] = useState<Tab>('blog');
+  const game = useGame();
 
   return (
     <div className="panel-wrap">
+      {!game.signedIn && (
+        <a className="save-hint" href="/auth/login.html" target="_top" rel="noopener">
+          ログインすると　きろくが　ほかの　デバイスにも　のこります →
+        </a>
+      )}
       <nav className="tabs">
         {TABS.map((t) => (
           <button

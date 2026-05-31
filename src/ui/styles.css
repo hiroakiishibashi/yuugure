@@ -67,6 +67,21 @@
   min-height: 180px;
 }
 
+.save-hint {
+  display: block;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #b79be8;
+  background: rgba(43, 33, 64, 0.5);
+  border: 1px solid #3a3350;
+  border-radius: 8px;
+  text-decoration: none;
+}
+.save-hint:hover {
+  background: rgba(58, 47, 86, 0.6);
+}
+
 /* generic controls */
 .field {
   width: 100%;

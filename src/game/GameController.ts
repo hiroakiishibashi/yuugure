@@ -14,6 +14,8 @@ import { ItemManager } from '../engine/items/ItemManager';
 import { PixiHost } from '../renderer/PixiHost';
 import { blogToNML, reactToBlog } from './blogReactions';
 import { ROOM_ITEMS, STARTER_ITEM_IDS, getRoomItem } from './roomItems';
+import { HOME_CHARACTER_ID } from './characters';
+import { SaveService, type SaveData } from './SaveService';
 
 const START_LIFE = 50;
 
@@ -28,9 +30,11 @@ export type PostsListener = (posts: BlogPost[]) => void;
 
 export class GameController {
   private readonly executor: NMLExecutor;
+  private readonly saveService = new SaveService();
   private current: Promise<unknown> = Promise.resolve();
   private posts: BlogPost[] = [];
   private nextId = 1;
+  private booted = false;
   private readonly postListeners = new Set<PostsListener>();
 
   private constructor(
@@ -53,18 +57,36 @@ export class GameController {
     for (const item of ROOM_ITEMS) catalogue[item.id] = { id: item.id, name: item.name, art: item.art };
     const items = new ItemManager(catalogue);
     const host = await PixiHost.create(root, { onItem: (type, action) => items.apply(type, action) });
-    return new GameController(host, items);
+    const controller = new GameController(host, items);
+    await controller.boot();
+    return controller;
+  }
+
+  /** Load the saved game (Supabase when signed in, else localStorage) and apply
+   *  it over the seeded defaults; then start auto-persisting on change. */
+  private async boot(): Promise<void> {
+    const saved = await this.saveService.load();
+    if (saved) this.applySave(saved);
+    this.booted = true;
+    // persist whenever the inventory changes (fires once now with current state)
+    this.items.subscribe(() => this.persist());
   }
 
   get life(): number {
     return this.executor.life;
   }
 
+  /** Whether saves sync to the account (vs. localStorage only). */
+  get signedIn(): boolean {
+    return this.saveService.signedIn;
+  }
+
   /** Play an NML scene. Any in-progress scene is interrupted first. */
   async runNML(src: string, opts: RunOptions = {}): Promise<void> {
-    this.host.cancelWait();
+    this.host.cancelWait(); // interrupt + short-circuit any wait the old scene hits
     this.executor.stop();
     await this.current.catch(() => undefined);
+    this.host.beginRun(); // re-enable real waits for the new scene
     this.current = this.executor.run(parseNML(src), { initialSpeed: 2, ...opts });
     await this.current;
   }
@@ -76,6 +98,7 @@ export class GameController {
     const reaction = reactToBlog(trimmed);
     this.addPost({ id: this.nextId++, text: trimmed, matched: reaction.matched });
     await this.runNML(blogToNML(trimmed));
+    this.persist(); // capture the new post + any life change
   }
 
   /** A short greeting played when the room first opens (with a real backdrop). */
@@ -95,6 +118,7 @@ export class GameController {
   /** Swap the on-screen creature (entering a different room). */
   setCharacter(id: string): void {
     this.host.setCharacter(id);
+    this.persist();
   }
 
   // --- blog feed ---
@@ -113,10 +137,43 @@ export class GameController {
 
   private addPost(post: BlogPost): void {
     this.posts = [post, ...this.posts];
+    this.notifyPosts();
+  }
+
+  private notifyPosts(): void {
     for (const fn of this.postListeners) fn(this.getPosts());
   }
 
+  // --- persistence ---
+
+  /** Apply a loaded save over the seeded defaults. */
+  private applySave(s: SaveData): void {
+    this.executor.life = s.life;
+    this.host.changeLife({ value: s.life, delta: 0, change: { kind: 'absolute', value: s.life }, text: {} });
+    this.executor.local.load(s.vars ?? {});
+    this.items.loadCounts(s.inventory ?? {});
+    this.posts = [...(s.posts ?? [])];
+    this.nextId = this.posts.reduce((m, p) => Math.max(m, p.id), 0) + 1;
+    this.notifyPosts();
+    this.host.setCharacter(s.character || HOME_CHARACTER_ID);
+  }
+
+  /** Snapshot + queue a save (debounced). No-op until boot has restored state. */
+  private persist(): void {
+    if (!this.booted) return;
+    const data: SaveData = {
+      v: 1,
+      life: this.executor.life,
+      character: this.host.characterId,
+      vars: this.executor.local.snapshot(),
+      posts: this.posts,
+      inventory: this.items.snapshot(),
+    };
+    this.saveService.save(data);
+  }
+
   destroy(): void {
+    void this.saveService.flush(); // push any pending save before tearing down
     this.executor.stop();
     this.host.cancelWait();
     this.host.destroy();

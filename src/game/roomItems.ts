@@ -6,6 +6,8 @@
  * Pure data (no PixiJS/React), so it is unit-testable.
  */
 
+import { ASSET_BASE } from '../assetBase';
+
 export interface RoomItemDef {
   id: string;
   /** display name (hiragana/katakana) */
@@ -36,7 +38,7 @@ const ITEMS: Array<[string, string]> = [
 export const ROOM_ITEMS: readonly RoomItemDef[] = ITEMS.map(([id, name]) => ({
   id,
   name,
-  art: `/assets/room-items/${id}.png`,
+  art: `${ASSET_BASE}assets/room-items/${id}.png`,
 }));
 
 export const ROOM_ITEM_IDS: readonly string[] = ROOM_ITEMS.map((i) => i.id);
