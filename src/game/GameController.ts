@@ -51,6 +51,7 @@ export class GameController {
     host.changeLife({ value: START_LIFE, delta: 0, change: { kind: 'absolute', value: START_LIFE }, text: {} });
     // a few starter belongings so the room can be decorated right away
     for (const id of STARTER_ITEM_IDS) items.add(id);
+    host.setRoomTitle('じぶんの　へや');
   }
 
   static async create(root: HTMLElement): Promise<GameController> {
@@ -125,6 +126,7 @@ export class GameController {
     this.host.clearRoomItems();
     this.host.setCharacter(resident.characterId);
     this.host.setRoomTitle(`${resident.roomNo}号室　${resident.name}さんの へや`);
+    this.host.setLive(true);
     (resident.items ?? []).forEach((id, i) => {
       const def = getRoomItem(id);
       void this.host.addRoomItem(def?.name ?? id, i % 5, Math.floor(i / 5) % 5, def?.art);
@@ -138,6 +140,7 @@ export class GameController {
     this.host.clearRoomItems();
     this.host.setCharacter(this.homeCharacterId);
     this.host.setRoomTitle('じぶんの　へや');
+    this.host.setLive(false);
   }
 
   // --- blog feed ---
@@ -177,6 +180,7 @@ export class GameController {
     this.homeCharacterId = s.character || HOME_CHARACTER_ID;
     this.host.setCharacter(this.homeCharacterId);
     this.host.setRoomTitle('じぶんの　へや');
+    this.host.setLive(false);
   }
 
   /** Snapshot + queue a save (debounced). No-op until boot has restored state. */

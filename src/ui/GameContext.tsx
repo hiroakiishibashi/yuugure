@@ -44,6 +44,7 @@ export function GameProvider({ children }: { children: ReactNode }): JSX.Element
       <header className="app-header">
         <h1>夕暮れ</h1>
         <span className="app-sub">— のけものがたり —</span>
+        <a className="app-back" href="/">← ゲーム一覧</a>
       </header>
       <div className="stage" ref={stageRef} />
       {game ? (

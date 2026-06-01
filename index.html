@@ -3,18 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>夕暮れ — NML Engine (Phase 1)</title>
+    <title>夕暮れ — のけものがたり</title>
     <style>
       :root { color-scheme: dark; }
-      html, body { margin: 0; height: 100%; background: #15121c; }
+      html, body { margin: 0; min-height: 100%; background: #0f1c2b; }
       body {
         font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui, sans-serif;
-        color: #cfc7dd;
+        color: #cfe0f2;
         display: flex;
         justify-content: center;
-        padding: 20px 16px 60px;
+        padding: 24px clamp(16px, 4vw, 48px) 60px;
       }
-      #app { width: min(720px, 96vw); }
+      /* full-page layout (the game IS the page — no iframe) */
+      #app { width: 100%; max-width: 960px; }
     </style>
   </head>
   <body>

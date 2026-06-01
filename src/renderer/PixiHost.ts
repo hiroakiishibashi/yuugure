@@ -18,7 +18,7 @@ import { PixelCharacter } from './character/PixelCharacter';
 import { HOME_CHARACTER_ID } from '../game/characters';
 import { ASSET_BASE } from '../assetBase';
 import { RoomRenderer } from './room/RoomRenderer';
-import { TextBox } from './ui/TextBox';
+import { SpeechBubbles } from './ui/SpeechBubbles';
 import { LifeMeter } from './ui/LifeMeter';
 import type { ImageCommand, LifeUpdate, NMLHost, TextContext } from '../engine/nml/NMLExecutor';
 import type { LifeText, ResolvedChoice } from '../engine/nml/NMLTypes';
@@ -48,9 +48,10 @@ export class PixiHost implements NMLHost {
   private readonly layers = new Map<number, Container>();
   private readonly room: RoomRenderer;
   private readonly character: PixelCharacter;
-  private readonly textBox: TextBox;
+  private readonly speech: SpeechBubbles;
   private readonly lifeMeter: LifeMeter;
   private readonly titleText: Text;
+  private readonly liveBadge: Container;
   private readonly statusText: Text;
 
   private lifeText: LifeText = {};
@@ -92,36 +93,30 @@ export class PixiHost implements NMLHost {
 
     this.titleText = new Text({
       text: '',
-      style: { fontFamily: 'system-ui, sans-serif', fontSize: 20, fontWeight: '600', fill: 0xd8b4fe },
+      style: { fontFamily: 'system-ui, sans-serif', fontSize: 19, fontWeight: '600', fill: 0xcfe6ff },
     });
     this.titleText.anchor.set(0.5, 0);
-    this.titleText.position.set(WIDTH / 2, 18);
+    this.titleText.position.set(WIDTH / 2, 16);
+    this.liveBadge = this.buildLiveBadge();
 
     this.lifeMeter = new LifeMeter({ width: 220 });
-    this.lifeMeter.view.position.set(24, 58);
-
-    this.textBox = new TextBox({ width: WIDTH - 80, height: 170 });
-    this.textBox.view.position.set(40, HEIGHT - 190);
+    this.lifeMeter.view.position.set(24, 52);
 
     this.statusText = new Text({
       text: '',
-      style: { fontFamily: 'system-ui, sans-serif', fontSize: 12, fill: 0x6b6480 },
+      style: { fontFamily: 'system-ui, sans-serif', fontSize: 12, fill: 0x7f9bc0 },
     });
     this.statusText.anchor.set(1, 0);
     this.statusText.position.set(WIDTH - 16, 18);
 
     scene.addChild(this.imageLayer, this.room.view);
-    scene.addChild(this.titleText, this.lifeMeter.view, this.textBox.view, this.statusText);
+    scene.addChild(this.titleText, this.liveBadge, this.lifeMeter.view, this.statusText);
     app.stage.addChild(scene);
-    // the pixel-art creature lives in the DOM overlay, above the canvas
+    // the pixel-art creature + speech bubbles live in the DOM overlay
     this.overlay.appendChild(this.character.el);
+    this.speech = new SpeechBubbles(this.overlay);
 
-    // shared ticker drives the typewriter (the GIF animates itself)
-    app.ticker.add((ticker) => {
-      this.textBox.update(ticker.deltaMS);
-    });
-
-    // click / key to advance (skip typing, then release the active wait)
+    // click / key to advance the dialogue
     app.canvas.addEventListener('click', () => this.advance());
     this.keydownHandler = (e: KeyboardEvent) => {
       const tag = (document.activeElement?.tagName ?? '').toLowerCase();
@@ -136,7 +131,7 @@ export class PixiHost implements NMLHost {
     await app.init({
       width: WIDTH,
       height: HEIGHT,
-      background: 0x15121c,
+      background: 0x16273a,
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
@@ -145,8 +140,8 @@ export class PixiHost implements NMLHost {
   }
 
   private advance(): void {
-    if (this.textBox.isTyping) {
-      this.textBox.skip();
+    if (this.speech.isTyping) {
+      this.speech.skip();
       return;
     }
     if (this.waiter) {
@@ -165,18 +160,18 @@ export class PixiHost implements NMLHost {
   // --- NMLHost: text ---
 
   async printText(text: string, ctx: TextContext): Promise<void> {
-    this.textBox.showIndicator(false);
+    this.speech.showIndicator(false);
     this.character.setState('talk');
-    await this.textBox.print(text, ctx.cps);
+    await this.speech.print(text, ctx.cps);
     this.relaxToIdle();
   }
 
   clearText(): void {
-    this.textBox.clear();
+    this.speech.clear();
   }
 
   lineBreak(): void {
-    this.textBox.lineBreak();
+    this.speech.lineBreak();
   }
 
   // --- NMLHost: pacing ---
@@ -184,10 +179,10 @@ export class PixiHost implements NMLHost {
   waitClick(): Promise<void> {
     if (this.interrupting) return Promise.resolve();
     this.relaxToIdle();
-    this.textBox.showIndicator(true);
+    this.speech.showIndicator(true);
     return new Promise((resolve) => {
       this.waiter = () => {
-        this.textBox.showIndicator(false);
+        this.speech.showIndicator(false);
         resolve();
       };
     });
@@ -278,7 +273,7 @@ export class PixiHost implements NMLHost {
   requestInput(variable: string): Promise<string> {
     if (this.interrupting) return Promise.resolve('');
     this.relaxToIdle();
-    this.textBox.showIndicator(false);
+    this.speech.showIndicator(false);
     return new Promise((resolve) => {
       const box = this.overlayBox();
       box.innerHTML = `
@@ -305,7 +300,7 @@ export class PixiHost implements NMLHost {
   requestChoice(choices: ResolvedChoice[]): Promise<number> {
     if (this.interrupting) return Promise.resolve(0);
     this.relaxToIdle();
-    this.textBox.showIndicator(false);
+    this.speech.showIndicator(false);
     return new Promise((resolve) => {
       const box = this.overlayBox();
       choices.forEach((choice, i) => {
@@ -336,7 +331,7 @@ export class PixiHost implements NMLHost {
   }
 
   onEnd(evaluate: boolean): void {
-    this.textBox.showIndicator(false);
+    this.speech.showIndicator(false);
     this.status(`— おわり —${evaluate ? '' : '（評価なし）'}`);
   }
 
@@ -369,6 +364,24 @@ export class PixiHost implements NMLHost {
     this.titleText.text = text;
   }
 
+  /** Show/hide the "LIVE" badge (visiting another resident's room). */
+  setLive(on: boolean): void {
+    this.liveBadge.visible = on;
+  }
+
+  private buildLiveBadge(): Container {
+    const badge = new Container();
+    const g = new Graphics();
+    g.roundRect(0, 0, 50, 20, 4).fill(0xd2483a);
+    const t = new Text({ text: 'LIVE', style: { fontFamily: 'system-ui, sans-serif', fontSize: 12, fontWeight: '700', fill: 0xffffff } });
+    t.anchor.set(0.5);
+    t.position.set(25, 10);
+    badge.addChild(g, t);
+    badge.position.set(14, 12);
+    badge.visible = false;
+    return badge;
+  }
+
   /** Remove all placed furniture (when switching rooms). */
   clearRoomItems(): void {
     this.room.clearItems();
@@ -378,11 +391,11 @@ export class PixiHost implements NMLHost {
    *  wait, and short-circuit any wait the unwinding scene reaches next. */
   cancelWait(): void {
     this.interrupting = true;
-    this.textBox.skip();
+    this.speech.skip();
     if (this.waiter) {
       const w = this.waiter;
       this.waiter = null;
-      this.textBox.showIndicator(false);
+      this.speech.showIndicator(false);
       w();
     }
   }
@@ -454,16 +467,43 @@ function injectStyles(): void {
     }
     .nml-character[data-mood="glad"] { filter: brightness(1.18) saturate(1.25); transform: translate(-50%, -106%); }
     .nml-character[data-mood="sad"]  { filter: brightness(0.78) saturate(0.65); transform: translate(-50%, -95%); }
+    /* speech bubbles (creature dialogue), stacked above the head */
+    .nml-bubbles {
+      position: absolute; left: 50%; bottom: 50%;
+      transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      width: 86%; pointer-events: none;
+    }
+    .nml-bubble {
+      position: relative; max-width: 80%;
+      background: #eaf2fb; color: #1c3148;
+      border-radius: 14px; padding: 8px 14px;
+      font-size: 15px; line-height: 1.5; text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,.35);
+      animation: nml-bubble-in .18s ease-out;
+    }
+    .nml-bubble::after {
+      content: ''; position: absolute; left: 50%; bottom: -7px;
+      transform: translateX(-50%);
+      border: 7px solid transparent; border-top-color: #eaf2fb; border-bottom: 0;
+    }
+    @keyframes nml-bubble-in { from { opacity: 0; transform: translateY(6px) scale(.96); } }
+    .nml-bubble-hint {
+      position: absolute; right: 16px; bottom: 12px;
+      color: #bcd8f4; font-size: 13px; pointer-events: none;
+      animation: nml-blink 1s steps(2) infinite;
+    }
+    @keyframes nml-blink { 50% { opacity: .25; } }
     .nml-controls {
-      position: absolute; left: 40px; right: 40px; bottom: 26px;
+      position: absolute; left: 40px; right: 40px; bottom: 22px;
       display: flex; flex-wrap: wrap; gap: 10px; pointer-events: auto;
     }
     .nml-controls .nml-input { flex: 1 1 200px; padding: 10px 12px; font-size: 16px; border-radius: 8px;
-      border: 1px solid #4a4366; background: #0d0a14; color: #e8e2f2; }
+      border: 1px solid #3c5a7e; background: #0d1828; color: #dceaf8; }
     .nml-controls .nml-submit, .nml-controls .nml-choice {
       padding: 10px 16px; font-size: 15px; cursor: pointer; border-radius: 8px;
-      border: 1px solid #5b4b86; background: #2a2140; color: #e8e2f2; }
-    .nml-controls .nml-submit:hover, .nml-controls .nml-choice:hover { background: #3a2f56; }
+      border: 1px solid #4f7bb0; background: #1e3550; color: #dceaf8; }
+    .nml-controls .nml-submit:hover, .nml-controls .nml-choice:hover { background: #284766; }
   `;
   document.head.appendChild(style);
 }
