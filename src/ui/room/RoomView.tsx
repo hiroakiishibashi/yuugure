@@ -26,7 +26,7 @@ export function RoomView(): JSX.Element {
 
   return (
     <div className="room-panel">
-      <p className="blog-hint">アイテムを　えらんで　へやに　おこう（うえの　ゆかに　ならぶよ）</p>
+      <p className="blog-hint">アイテムを　えらんで　へやに　おこう。おいた　かぐは　ドラッグで　うごかせるよ</p>
       <ItemPanel items={items} onPlace={place} />
     </div>
   );

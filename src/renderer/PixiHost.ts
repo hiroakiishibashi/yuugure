@@ -11,7 +11,7 @@
  * Construct via the async factory: `const host = await PixiHost.create(rootEl)`.
  */
 
-import { Application, Assets, Container, Graphics, Sprite, Text } from 'pixi.js';
+import { Application, Assets, Container, FillGradient, Graphics, Sprite, Text } from 'pixi.js';
 import { gsap } from 'gsap';
 import { AssetResolver } from './assets/AssetResolver';
 import { PixelCharacter } from './character/PixelCharacter';
@@ -109,9 +109,18 @@ export class PixiHost implements NMLHost {
     this.statusText.anchor.set(1, 0);
     this.statusText.position.set(WIDTH - 16, 18);
 
-    scene.addChild(this.imageLayer, this.room.view);
+    // room background: a blue vertical gradient (no photo needed)
+    const bgGrad = new FillGradient(0, 0, 0, HEIGHT);
+    bgGrad.addColorStop(0, 0x14304a);
+    bgGrad.addColorStop(1, 0x3f6f98);
+    const bg = new Graphics().rect(0, 0, WIDTH, HEIGHT).fill(bgGrad);
+    scene.addChild(bg, this.imageLayer, this.room.view);
     scene.addChild(this.titleText, this.liveBadge, this.lifeMeter.view, this.statusText);
     app.stage.addChild(scene);
+    // let the stage receive pointer move/up so furniture can be dragged
+    app.stage.eventMode = 'static';
+    app.stage.hitArea = app.screen;
+    this.room.attachDrag(app.stage);
     // the pixel-art creature + speech bubbles live in the DOM overlay
     this.overlay.appendChild(this.character.el);
     this.speech = new SpeechBubbles(this.overlay);

@@ -1,13 +1,12 @@
 /**
- * RoomRenderer - Draws the isometric room floor and holds depth-sorted items.
- * The foundation for the room-decoration gameplay (placing items is Phase 3 UI);
- * here it renders the grid and exposes placeItem() with correct draw order.
+ * RoomRenderer - The isometric room floor + depth-sorted, draggable furniture.
  *
- * Depth sorting is done manually (re-appending children in depth order) rather
- * than via zIndex/sortableChildren, to keep behaviour explicit and predictable.
+ * The player can place items (placeItem) and then drag them around the floor;
+ * on drop the item snaps to the nearest grid cell and the scene re-sorts by
+ * depth. Depth sorting is manual (re-append in depth order) for predictability.
  */
 
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, type FederatedPointerEvent } from 'pixi.js';
 import { IsometricGrid } from './IsometricGrid';
 import { ItemSprite } from './ItemSprite';
 
@@ -29,6 +28,8 @@ export class RoomRenderer {
   private readonly items: ItemSprite[] = [];
   private readonly cols: number;
   private readonly rows: number;
+  private stage: Container | null = null;
+  private dragging: ItemSprite | null = null;
 
   constructor(opts: RoomOptions = {}) {
     this.cols = opts.cols ?? 8;
@@ -46,26 +47,65 @@ export class RoomRenderer {
         const checker = (col + row) % 2 === 0;
         this.floor
           .poly(poly)
-          .fill({ color: checker ? 0x241f33 : 0x1d1929, alpha: 1 })
-          .stroke({ width: 1, color: 0x3a3350, alpha: 0.6 });
+          .fill({ color: checker ? 0x274a6e : 0x21405f, alpha: 0.5 })
+          .stroke({ width: 1, color: 0x5a86b8, alpha: 0.25 });
       }
     }
   }
 
-  /** Place a display object at a grid cell and keep draw order correct. */
+  /** Provide the stage so dragged items can track the pointer globally. */
+  attachDrag(stage: Container): void {
+    this.stage = stage;
+  }
+
+  /** Place a display object at a grid cell; it becomes draggable. */
   placeItem(display: Container, col: number, row: number): ItemSprite {
     const item = new ItemSprite(col, row, display);
     const p = this.grid.toScreen(col, row);
     item.view.position.set(p.x, p.y);
+    item.view.eventMode = 'static';
+    item.view.cursor = 'grab';
+    item.view.on('pointerdown', (e: FederatedPointerEvent) => this.startDrag(item, e));
     this.items.push(item);
     this.resort();
     return item;
+  }
+
+  private startDrag(item: ItemSprite, _e: FederatedPointerEvent): void {
+    if (!this.stage || this.dragging) return;
+    this.dragging = item;
+    item.view.cursor = 'grabbing';
+    item.view.alpha = 0.75;
+
+    const onMove = (ev: FederatedPointerEvent): void => {
+      const local = this.view.toLocal(ev.global);
+      item.view.position.set(local.x, local.y);
+    };
+    const onEnd = (): void => {
+      this.stage?.off('pointermove', onMove);
+      this.stage?.off('pointerup', onEnd);
+      this.stage?.off('pointerupoutside', onEnd);
+      const cell = this.grid.toCell(item.view.x, item.view.y);
+      item.col = clamp(cell.col, 0, this.cols - 1);
+      item.row = clamp(cell.row, 0, this.rows - 1);
+      const snap = this.grid.toScreen(item.col, item.row);
+      item.view.position.set(snap.x, snap.y);
+      item.view.cursor = 'grab';
+      item.view.alpha = 1;
+      this.dragging = null;
+      this.resort();
+    };
+
+    this.stage.on('pointermove', onMove);
+    this.stage.on('pointerup', onEnd);
+    this.stage.on('pointerupoutside', onEnd);
   }
 
   /** Remove all placed items (e.g. when switching rooms). */
   clearItems(): void {
     this.itemsLayer.removeChildren();
     this.items.length = 0;
+    this.dragging = null;
   }
 
   /** Re-append item views in ascending depth so nearer items draw last (on top). */
@@ -75,4 +115,8 @@ export class RoomRenderer {
       this.itemsLayer.addChild(item.view);
     }
   }
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
 }

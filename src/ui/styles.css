@@ -272,63 +272,81 @@
 }
 .doors {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+  gap: 16px;
+  justify-items: center;
 }
+/* door card = the salvaged door image, with overlays */
 .door {
-  aspect-ratio: 3 / 4.4;
-  border-radius: 6px;
-  border: 1px solid #3c5a7e;
-  background: linear-gradient(165deg, #1c2c40, #15202f);
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  padding: 8px;
+  position: relative;
+  width: 100%;
+  max-width: 124px;
+  aspect-ratio: 100 / 150;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  border: none;
+  padding: 0;
   cursor: pointer;
-  color: #bcd0e8;
+  transition: filter 0.12s, transform 0.12s;
 }
 .door:hover {
-  border-color: #6f9bcb;
-  background: linear-gradient(165deg, #233650, #1a283a);
+  filter: brightness(1.15);
+  transform: translateY(-2px);
 }
-.door .door-id {
+.door .door-no {
+  position: absolute;
+  top: 7%;
+  left: 0;
+  right: 0;
+  text-align: center;
   font-size: 12px;
-  letter-spacing: 0.14em;
-  color: #9fc0e8;
-  border-bottom: 1px solid #2e4660;
-  padding-bottom: 4px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #eaf4ff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
-.door .door-window {
-  flex: 1;
-  min-height: 0;
+.door .door-win {
+  position: absolute;
+  top: 19%;
+  left: 24%;
+  right: 24%;
+  height: 36%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, #0f1828, #0a1018);
-  border: 1px solid #2e4660;
-  border-radius: 4px;
   overflow: hidden;
 }
 .door .door-thumb {
-  width: 88%;
-  height: 88%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
-  image-rendering: pixelated; /* keep the creature's ドット絵 crisp */
+  image-rendering: pixelated;
 }
-.door .door-name {
-  font-size: 13px;
-  text-align: center;
-  color: #cfe0f2;
+.door .door-plate {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 11%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
 .door .door-title {
-  font-size: 11px;
-  text-align: center;
-  color: #8fb0d4;
+  font-size: 9px;
+  color: #dbe9f8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+.door .door-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
 }
 
 /* header back-link */
