@@ -10,16 +10,18 @@
       body {
         font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui, sans-serif;
         color: #cfe0f2;
-        display: flex;
-        justify-content: center;
-        padding: 24px clamp(16px, 4vw, 48px) 60px;
       }
-      /* full-page layout (the game IS the page — no iframe) */
-      #app { width: 100%; max-width: 960px; }
+      /* Full-page layout (the game IS the page — no iframe). The portal's shared
+         site header (injected as a sticky 60px <nav>; see vite.config) sits above
+         and the game is centred below it. */
+      #app { width: 100%; max-width: 960px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 48px) 60px; }
     </style>
+    <script type="module" src="/src/main.tsx"></script>
   </head>
   <body>
+    <!-- メインサイト共通ヘッダー（本番で /js/common-header.js がこの <nav> を差し替え。
+         スクリプトは vite.config の transformIndexHtml で注入される） -->
+    <nav><!-- replaced by /js/common-header.js --></nav>
     <div id="app"></div>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
