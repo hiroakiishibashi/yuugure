@@ -1,26 +1,24 @@
 /**
- * App - The tabbed shell below the persistent PixiJS scene.
- * Tabs: ブログ (write → the character speaks), 部屋 (decorate), ギャラリー (doors).
+ * App - The panel BELOW the scene. The spatial parts (青空アパート doors and the
+ * room itself with furniture) now live in the top scene (see GameContext); this
+ * panel holds the player's "small boxes": NMLの小箱 (mail) and じぶんの小箱 (blog,
+ * the write → the creature speaks loop).
  */
 
 import { useState } from 'react';
 import { useGame } from './GameContext';
 import { BlogPanel } from './blog/BlogPanel';
-import { RoomView } from './room/RoomView';
-import { DoorGallery } from './gallery/DoorGallery';
 import { MailBox } from './mail/MailBox';
 
-type Tab = 'gallery' | 'mail' | 'blog' | 'room';
+type Tab = 'mail' | 'blog';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'gallery', label: '青空アパート' },
   { id: 'mail', label: 'NMLの小箱' },
   { id: 'blog', label: 'じぶんの小箱' },
-  { id: 'room', label: 'へや' },
 ];
 
 export function App(): JSX.Element {
-  const [tab, setTab] = useState<Tab>('gallery');
+  const [tab, setTab] = useState<Tab>('mail');
   const game = useGame();
 
   return (
@@ -43,10 +41,8 @@ export function App(): JSX.Element {
         ))}
       </nav>
       <div className="panel">
-        {tab === 'gallery' && <DoorGallery />}
         {tab === 'mail' && <MailBox />}
         {tab === 'blog' && <BlogPanel />}
-        {tab === 'room' && <RoomView />}
       </div>
     </div>
   );

@@ -396,6 +396,11 @@ export class PixiHost implements NMLHost {
     this.room.clearItems();
   }
 
+  /** Enable/disable furniture rearrange (drag) — on only in "もようがえ" mode. */
+  setRoomEditable(on: boolean): void {
+    this.room.setEditable(on);
+  }
+
   /** Begin interrupting the current scene: finish typing, release any pending
    *  wait, and short-circuit any wait the unwinding scene reaches next. */
   cancelWait(): void {

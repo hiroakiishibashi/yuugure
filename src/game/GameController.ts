@@ -29,6 +29,13 @@ export interface BlogPost {
 
 export type PostsListener = (posts: BlogPost[]) => void;
 
+/** Which "space" the top scene shows: standing outside among the doors, or
+ *  inside a room (own or a visited one). The React shell cross-fades between
+ *  the two with a sliding-door transition. */
+export type SceneMode = 'inside' | 'outside';
+export type ModeListener = (mode: SceneMode) => void;
+export type EditListener = (editing: boolean) => void;
+
 export class GameController {
   private readonly executor: NMLExecutor;
   private readonly saveService = new SaveService();
@@ -40,6 +47,13 @@ export class GameController {
    *  screen while visiting, so visiting never overwrites the player's save */
   private homeCharacterId = HOME_CHARACTER_ID;
   private readonly postListeners = new Set<PostsListener>();
+
+  /** scene = inside a room vs. outside at the doors; edit = furniture rearrange */
+  private mode: SceneMode = 'inside';
+  private visiting = false; // inside someone else's room (no editing)
+  private editMode = false;
+  private readonly modeListeners = new Set<ModeListener>();
+  private readonly editListeners = new Set<EditListener>();
 
   private constructor(
     readonly host: PixiHost,
@@ -86,6 +100,58 @@ export class GameController {
     return this.saveService.signedIn;
   }
 
+  // --- scene mode (inside a room ⇄ outside at the doors) ---
+
+  get sceneMode(): SceneMode {
+    return this.mode;
+  }
+
+  /** True while the room on screen is the player's own (furniture is editable). */
+  get isOwnRoom(): boolean {
+    return !this.visiting;
+  }
+
+  /** Whether furniture rearrange ("もようがえ") is currently on. */
+  get editing(): boolean {
+    return this.editMode;
+  }
+
+  subscribeMode(fn: ModeListener): () => void {
+    this.modeListeners.add(fn);
+    fn(this.mode);
+    return () => {
+      this.modeListeners.delete(fn);
+    };
+  }
+
+  subscribeEdit(fn: EditListener): () => void {
+    this.editListeners.add(fn);
+    fn(this.editMode);
+    return () => {
+      this.editListeners.delete(fn);
+    };
+  }
+
+  private setMode(mode: SceneMode): void {
+    if (this.mode === mode) return;
+    this.mode = mode;
+    for (const fn of this.modeListeners) fn(mode);
+  }
+
+  /** Toggle furniture rearrange (only meaningful in the player's own room). */
+  setEditMode(on: boolean): void {
+    if (this.editMode === on) return;
+    this.editMode = on;
+    this.host.setRoomEditable(on);
+    for (const fn of this.editListeners) fn(on);
+  }
+
+  /** Step out of the room, back to the apartment doors (with a transition). */
+  goOutside(): void {
+    this.setEditMode(false);
+    this.setMode('outside');
+  }
+
   /** Play an NML scene. Any in-progress scene is interrupted first. */
   async runNML(src: string, opts: RunOptions = {}): Promise<void> {
     this.host.cancelWait(); // interrupt + short-circuit any wait the old scene hits
@@ -119,9 +185,13 @@ export class GameController {
     return this.host.addRoomItem(def?.name ?? id, col, row, def?.art);
   }
 
-  /** Enter another resident's room: their creature appears, decorates with their
-   *  furniture, and greets you. Transient — does NOT change the player's save. */
-  async visitRoom(resident: Resident): Promise<void> {
+  /** Enter another resident's room: switch to the inside scene, their creature
+   *  appears, decorates with their furniture, and greets you. Transient — does
+   *  NOT change the player's save, and furniture is read-only (no editing). */
+  async enterRoom(resident: Resident): Promise<void> {
+    this.visiting = true;
+    this.setEditMode(false);
+    this.setMode('inside');
     this.host.clearRoomItems();
     this.host.setCharacter(resident.characterId);
     this.host.setRoomTitle(`${resident.roomNo}号室　${resident.name}さんの へや`);
@@ -134,9 +204,13 @@ export class GameController {
     await this.runNML(`<nml><clear>${body}\n<anim idle><end></nml>`);
   }
 
-  /** Return to the player's own room. */
+  /** Return to the player's own room (inside scene). */
   goHome(): void {
+    this.visiting = false;
+    this.setMode('inside');
+    this.host.cancelWait(); // stop any visited-room scene still typing
     this.host.clearRoomItems();
+    this.host.clearText(); // drop the visited resident's leftover speech bubbles
     this.host.setCharacter(this.homeCharacterId);
     this.host.setRoomTitle('じぶんの　へや');
     this.host.setLive(false);

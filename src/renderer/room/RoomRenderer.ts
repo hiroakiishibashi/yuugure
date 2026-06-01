@@ -30,6 +30,8 @@ export class RoomRenderer {
   private readonly rows: number;
   private stage: Container | null = null;
   private dragging: ItemSprite | null = null;
+  /** furniture is only draggable in "もようがえ" (edit) mode */
+  private editable = false;
 
   constructor(opts: RoomOptions = {}) {
     this.cols = opts.cols ?? 8;
@@ -58,21 +60,31 @@ export class RoomRenderer {
     this.stage = stage;
   }
 
-  /** Place a display object at a grid cell; it becomes draggable. */
+  /** Enable/disable furniture rearrange. When off, items ignore the pointer. */
+  setEditable(on: boolean): void {
+    this.editable = on;
+    for (const item of this.items) this.applyInteractive(item);
+  }
+
+  private applyInteractive(item: ItemSprite): void {
+    item.view.eventMode = this.editable ? 'static' : 'none';
+    item.view.cursor = this.editable ? 'grab' : 'default';
+  }
+
+  /** Place a display object at a grid cell; draggable while in edit mode. */
   placeItem(display: Container, col: number, row: number): ItemSprite {
     const item = new ItemSprite(col, row, display);
     const p = this.grid.toScreen(col, row);
     item.view.position.set(p.x, p.y);
-    item.view.eventMode = 'static';
-    item.view.cursor = 'grab';
     item.view.on('pointerdown', (e: FederatedPointerEvent) => this.startDrag(item, e));
+    this.applyInteractive(item);
     this.items.push(item);
     this.resort();
     return item;
   }
 
   private startDrag(item: ItemSprite, _e: FederatedPointerEvent): void {
-    if (!this.stage || this.dragging) return;
+    if (!this.editable || !this.stage || this.dragging) return;
     this.dragging = item;
     item.view.cursor = 'grabbing';
     item.view.alpha = 0.75;

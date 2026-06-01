@@ -48,7 +48,7 @@ export function DoorGallery(): JSX.Element {
             type="button"
             className="door"
             style={{ backgroundImage: `url(${DOOR_IMG})` }}
-            onClick={() => void game.visitRoom(r)}
+            onClick={() => void game.enterRoom(r)}
           >
             <span className="door-no">{r.roomNo}</span>
             <span className="door-win">

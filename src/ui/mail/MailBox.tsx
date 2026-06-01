@@ -53,7 +53,7 @@ export function MailBox(): JSX.Element {
         <p className="mail-sig">── {r.name}（{r.roomNo}号室）</p>
       </div>
 
-      <button type="button" className="btn btn-primary" onClick={() => void game.visitRoom(r)}>
+      <button type="button" className="btn btn-primary" onClick={() => void game.enterRoom(r)}>
         この へやを たずねる →
       </button>
     </div>
