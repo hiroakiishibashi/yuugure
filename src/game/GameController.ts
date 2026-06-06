@@ -20,6 +20,22 @@ import { SaveService, type SaveData } from './SaveService';
 
 const START_LIFE = 50;
 
+interface PlacedRoomItem {
+  id: string;
+  col: number;
+  row: number;
+}
+
+const HOME_DEFAULT_ITEMS: readonly PlacedRoomItem[] = [
+  { id: 'item_000_tana', col: 0, row: 1 },
+  { id: 'item_011_hondana', col: 1, row: 0 },
+  { id: 'item_009_closet', col: 5, row: 0 },
+  { id: 'item_014_TV', col: 2, row: 3 },
+  { id: 'item_014_stereo', col: 3, row: 3 },
+  { id: 'item_013_tokei', col: 6, row: 1 },
+  { id: 'item_004_kanyoshokubutu', col: 0, row: 4 },
+];
+
 export interface BlogPost {
   id: number;
   text: string;
@@ -52,6 +68,7 @@ export class GameController {
   private mode: SceneMode = 'inside';
   private visiting = false; // inside someone else's room (no editing)
   private editMode = false;
+  private readonly homePlacedItems: PlacedRoomItem[] = [];
   private readonly modeListeners = new Set<ModeListener>();
   private readonly editListeners = new Set<EditListener>();
 
@@ -65,7 +82,8 @@ export class GameController {
     host.changeLife({ value: START_LIFE, delta: 0, change: { kind: 'absolute', value: START_LIFE }, text: {} });
     // a few starter belongings so the room can be decorated right away
     for (const id of STARTER_ITEM_IDS) items.add(id);
-    host.setRoomTitle('じぶんの　へや');
+    host.setRoomTitle('9999号室　じぶんの部屋');
+    void this.decorateHome();
   }
 
   static async create(root: HTMLElement): Promise<GameController> {
@@ -180,9 +198,10 @@ export class GameController {
   }
 
   /** Place an inventory item on the room grid using its real pixel-art sprite. */
-  placeItem(id: string, col: number, row: number): Promise<void> {
+  async placeItem(id: string, col: number, row: number): Promise<void> {
     const def = getRoomItem(id);
-    return this.host.addRoomItem(def?.name ?? id, col, row, def?.art);
+    await this.host.addRoomItem(def?.name ?? id, col, row, def?.art);
+    if (!this.visiting) this.homePlacedItems.push({ id, col, row });
   }
 
   /** Enter another resident's room: switch to the inside scene, their creature
@@ -212,8 +231,17 @@ export class GameController {
     this.host.clearRoomItems();
     this.host.clearText(); // drop the visited resident's leftover speech bubbles
     this.host.setCharacter(this.homeCharacterId);
-    this.host.setRoomTitle('じぶんの　へや');
+    this.host.setRoomTitle('9999号室　じぶんの部屋');
     this.host.setLive(false);
+    void this.decorateHome();
+  }
+
+  private async decorateHome(): Promise<void> {
+    const items = [...HOME_DEFAULT_ITEMS, ...this.homePlacedItems];
+    for (const item of items) {
+      const def = getRoomItem(item.id);
+      await this.host.addRoomItem(def?.name ?? item.id, item.col, item.row, def?.art);
+    }
   }
 
   // --- blog feed ---
@@ -252,7 +280,7 @@ export class GameController {
     this.notifyPosts();
     this.homeCharacterId = s.character || HOME_CHARACTER_ID;
     this.host.setCharacter(this.homeCharacterId);
-    this.host.setRoomTitle('じぶんの　へや');
+    this.host.setRoomTitle('9999号室　じぶんの部屋');
     this.host.setLive(false);
   }
 

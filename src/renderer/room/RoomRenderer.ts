@@ -49,8 +49,8 @@ export class RoomRenderer {
         const checker = (col + row) % 2 === 0;
         this.floor
           .poly(poly)
-          .fill({ color: checker ? 0x274a6e : 0x21405f, alpha: 0.5 })
-          .stroke({ width: 1, color: 0x5a86b8, alpha: 0.25 });
+          .fill({ color: checker ? 0x4c7fb4 : 0x416fa3, alpha: 0.42 })
+          .stroke({ width: 1, color: 0x0a3a63, alpha: 0.28 });
       }
     }
   }

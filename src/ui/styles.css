@@ -1,511 +1,612 @@
-/* Phase 3 UI — cozy dark theme for the React shell around the PixiJS scene. */
-
 * {
   box-sizing: border-box;
 }
 
+:root {
+  --ink: #003961;
+  --ink-soft: #2a5a86;
+  --line: #003961;
+  --blue-0: #003a60;
+  --blue-1: #608bc7;
+  --blue-2: #8aa6d6;
+  --blue-3: #c4d5ff;
+  --panel: #6f96cf;
+  --paper: #c4d5ff;
+}
+
 .app {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.app-header {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-.app-header h1 {
-  margin: 0;
-  font-size: 26px;
-  letter-spacing: 0.18em;
-  color: #cfe6ff;
-}
-.app-sub {
+  max-width: 640px;
+  margin: 0 auto;
+  color: var(--ink);
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Osaka, system-ui, sans-serif;
   font-size: 12px;
-  color: #7f9bc0;
-  letter-spacing: 0.1em;
+  line-height: 1.45;
 }
 
+.scene {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  min-height: 271px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid #0b4776;
+  background: linear-gradient(180deg, var(--blue-0), var(--blue-1));
+}
+
+.scene-layer,
 .stage {
   width: 100%;
 }
 
-/* the top "scene" — holds the inside (room) and outside (doors) layers, plus
-   the sliding-door transition curtain that covers a swap between them */
-.scene {
-  position: relative;
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  border-radius: 12px;
-  overflow: hidden;
-}
-.scene-layer {
-  width: 100%;
-}
 .scene-outside {
-  padding: 4px 0 8px;
+  min-height: 271px;
 }
 
-/* sliding-door curtain: two halves meet to cover the scene, then part again */
-.curtain {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  pointer-events: none;
-  overflow: hidden;
-}
-.curtain .curtain-half {
-  position: absolute;
-  top: -2%;
-  bottom: -2%;
-  width: 52%;
-  background: linear-gradient(180deg, #20364e 0%, #122336 55%, #0c1a28 100%);
-  box-shadow: inset 0 0 0 2px rgba(120, 160, 205, 0.18), 0 0 22px rgba(0, 0, 0, 0.5);
-  transition: transform 0.32s cubic-bezier(0.66, 0, 0.34, 1);
-  will-change: transform;
-}
-/* a faint vertical "panel seam" so each half reads as an apartment door */
-.curtain .curtain-half::before {
-  content: '';
-  position: absolute;
-  top: 8%;
-  bottom: 8%;
-  width: 38%;
-  border: 1px solid rgba(120, 160, 205, 0.22);
-  border-radius: 4px;
-}
-.curtain .curtain-half.left {
-  left: 0;
-  transform: translateX(-101%);
-}
-.curtain .curtain-half.left::before {
-  right: 16%;
-}
-.curtain .curtain-half.right {
-  right: 0;
-  transform: translateX(101%);
-}
-.curtain .curtain-half.right::before {
-  left: 16%;
-}
-.curtain.is-closed {
-  pointer-events: auto;
-}
-.curtain.is-closed .curtain-half.left,
-.curtain.is-closed .curtain-half.right {
-  transform: translateX(0);
-}
-
-/* in-room HUD (beneath the canvas): step outside + もようがえ + item palette */
 .room-hud {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 10px;
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 5;
+  margin: 0;
 }
+
 .hud-bar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.hud-btn {
-  padding: 8px 14px;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  border-radius: 8px;
-  border: 1px solid #3c5a7e;
-  background: #16273a;
-  color: #dceaf8;
-}
-.hud-btn:hover {
-  background: #1e3550;
-}
-.hud-btn.on {
-  background: #2f5a8a;
-  border-color: #5f8fc8;
-}
-.room-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px dashed #3c5a7e;
-  background: rgba(22, 39, 58, 0.5);
-}
-
-.loading {
-  padding: 40px;
-  text-align: center;
-  color: #7f9bc0;
-}
-
-/* tabs */
-.tabs {
-  display: flex;
-  gap: 8px;
-  border-bottom: 1px solid #243b54;
-  padding-bottom: 2px;
-}
-.tab {
-  padding: 9px 18px;
-  font-size: 14px;
-  color: #8fb0d4;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  letter-spacing: 0.05em;
-}
-.tab:hover {
-  color: #cfe0f2;
-}
-.tab-active {
-  color: #dceaf8;
-  border-bottom-color: #4f7bb0;
-}
-
-.panel {
-  min-height: 180px;
-}
-
-.save-hint {
-  display: block;
-  margin-bottom: 10px;
-  padding: 8px 12px;
-  font-size: 12px;
-  color: #9fc0e8;
-  background: rgba(43, 33, 64, 0.5);
-  border: 1px solid #34506e;
-  border-radius: 8px;
-  text-decoration: none;
-}
-.save-hint:hover {
-  background: rgba(58, 47, 86, 0.6);
-}
-
-/* generic controls */
-.field {
-  width: 100%;
-  padding: 12px 14px;
-  font-size: 16px;
-  line-height: 1.7;
-  border-radius: 10px;
-  border: 1px solid #34506e;
-  background: #0b1622;
-  color: #dceaf8;
-  resize: vertical;
-  font-family: inherit;
-}
-.field:focus {
-  outline: none;
-  border-color: #4f7bb0;
-}
-.btn {
-  padding: 10px 18px;
-  font-size: 15px;
-  cursor: pointer;
-  border-radius: 9px;
-  border: 1px solid #4f7bb0;
-  background: #1e3550;
-  color: #dceaf8;
-}
-.btn:hover {
-  background: #284766;
-}
-.btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.btn-primary {
-  background: #2f5a8a;
-  border-color: #5f8fc8;
-}
-.btn-primary:hover {
-  background: #3a6ba0;
-}
-
-/* blog */
-.blog {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.blog-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-.blog-hint {
-  font-size: 12px;
-  color: #7f9bc0;
-}
-.feed {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 6px;
-}
-.feed-empty {
-  color: #7f9bc0;
-  font-size: 13px;
-}
-.post {
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(26, 22, 38, 0.6);
-  border: 1px solid #243b54;
-}
-.post-text {
-  color: #cfe0f2;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.post-tag {
-  display: inline-block;
-  margin-top: 6px;
-  font-size: 11px;
-  color: #9fc0e8;
-  background: #241b38;
-  border-radius: 6px;
-  padding: 2px 8px;
-}
-
-/* room / items */
-.room-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.item-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.item-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: 4px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #3c5a7e;
-  background: #16273a;
-  color: #dceaf8;
+}
+
+.hud-btn,
+.mini-btn,
+.apt-link,
+.btn {
+  border: 1px solid var(--line);
+  background: #7fa4d5;
+  color: var(--ink);
+  font: 700 11px/1 "Hiragino Kaku Gothic ProN", "Yu Gothic", Osaka, sans-serif;
+  padding: 5px 9px;
   cursor: pointer;
-  min-width: 84px;
 }
-.item-chip:hover {
-  background: #1e3550;
+
+.hud-btn:hover,
+.mini-btn:hover,
+.apt-link:hover:not(:disabled),
+.btn:hover:not(:disabled) {
+  background: #b6cbf2;
 }
-.item-chip .item-art {
-  height: 46px;
-  width: auto;
-  object-fit: contain;
-  image-rendering: pixelated; /* keep the furniture's ドット絵 crisp */
+
+.hud-btn.on {
+  background: var(--blue-3);
 }
-.item-chip:disabled {
+
+.hud-btn:disabled,
+.mini-btn:disabled,
+.apt-link:disabled,
+.btn:disabled {
   opacity: 0.45;
   cursor: default;
 }
-.item-chip .note {
-  font-size: 11px;
-  color: #8fb0d4;
-}
-.item-chip .count {
-  font-size: 11px;
-  color: #9fc0e8;
+
+.curtain {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-/* apartment door-select — after the original 青空アパート screen */
-.apt-bar {
-  display: flex;
+.curtain-half {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background:
+    linear-gradient(180deg, #6f96cf, #244f78),
+    repeating-linear-gradient(90deg, transparent 0 22px, rgba(0, 57, 97, 0.25) 22px 24px);
+  border: 1px solid #003961;
+  transition: transform 0.32s cubic-bezier(0.66, 0, 0.34, 1);
+}
+
+.curtain-half.left {
+  left: 0;
+  transform: translateX(-100%);
+}
+
+.curtain-half.right {
+  right: 0;
+  transform: translateX(100%);
+}
+
+.curtain.is-closed {
+  pointer-events: auto;
+}
+
+.curtain.is-closed .curtain-half {
+  transform: translateX(0);
+}
+
+/* 青空アパート / DOOR SELECT */
+.apt {
+  min-height: 271px;
+  padding: 18px 16px 8px;
+  background:
+    radial-gradient(ellipse at 72% 48%, rgba(196, 213, 255, 0.18) 0 20%, transparent 21%),
+    linear-gradient(180deg, #6e98d0 0%, #5c86bf 100%);
+}
+
+.apt-top {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #20344e, #182838);
-  border: 1px solid #3c5a7e;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin-bottom: 10px;
+  white-space: nowrap;
 }
+
 .apt-logo {
-  font-size: 15px;
+  display: inline-block;
+  border: 1px solid var(--line);
+  padding: 2px 8px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: #bcd8f4;
+  letter-spacing: 0.1em;
 }
+
 .apt-floor {
-  font-size: 13px;
-  color: #8fb0d4;
-  font-variant-numeric: tabular-nums;
+  font: 700 20px/1 monospace;
+  letter-spacing: 0.04em;
 }
+
+.apt-info {
+  font-size: 11px;
+}
+
 .apt-nav {
-  margin-left: auto;
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
-.apt-btn {
-  padding: 6px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  border-radius: 6px;
-  border: 1px solid #3c5a7e;
-  background: #16222f;
-  color: #bcd0e8;
+
+.apt-link {
+  background: transparent;
+  border-color: transparent;
+  padding: 2px 4px;
 }
-.apt-btn:hover:not(:disabled) {
-  background: #233650;
+
+.area-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  height: 18px;
+  overflow: hidden;
+  margin: 0 0 4px;
+  color: #0a4677;
+  font: 700 9px/1 monospace;
 }
-.apt-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
+
+.area-line span {
+  display: inline-block;
+  min-width: 9px;
+  height: 10px;
+  border: 1px solid rgba(0, 57, 97, 0.45);
+  background: rgba(196, 213, 255, 0.28);
+  text-align: center;
 }
-.apt-home {
-  border-color: #6f5ba0;
-  background: #1e3550;
-  color: #dceaf8;
+
+.area-line .area-live {
+  min-width: 28px;
+  border-radius: 3px;
+  background: var(--blue-3);
 }
-.apt-hint {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  color: #6b7a90;
-  margin: 0 0 10px;
+
+.area-line .area-selected {
+  background: #1a5b8c;
 }
+
 .doors {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
-  gap: 16px;
-  justify-items: center;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  align-items: start;
 }
-/* door card = the salvaged door image, with overlays */
+
 .door {
   position: relative;
   width: 100%;
-  max-width: 124px;
   aspect-ratio: 100 / 150;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background-color: transparent;
   background-size: 100% 100%;
   background-repeat: no-repeat;
   image-rendering: pixelated;
-  border: none;
-  padding: 0;
   cursor: pointer;
-  transition: filter 0.12s, transform 0.12s;
+  color: var(--ink);
 }
+
 .door:hover {
-  filter: brightness(1.15);
-  transform: translateY(-2px);
+  filter: brightness(1.12);
+  transform: translateY(-1px);
 }
-.door .door-no {
+
+.door-no {
   position: absolute;
   top: 7%;
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-  color: #eaf4ff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  font: 700 11px/1 monospace;
+  color: #c4d5ff;
+  letter-spacing: 0.08em;
 }
-.door .door-win {
+
+.door-copy {
   position: absolute;
-  top: 19%;
-  left: 24%;
-  right: 24%;
-  height: 36%;
+  top: 18%;
+  left: 18%;
+  right: 18%;
+  height: 22%;
+  overflow: hidden;
+  font-size: 8px;
+  line-height: 1.15;
+  text-align: left;
+  color: #003961;
+}
+
+.door-win {
+  position: absolute;
+  top: 25%;
+  left: 23%;
+  right: 23%;
+  height: 34%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
 }
-.door .door-thumb {
-  max-width: 100%;
-  max-height: 100%;
+
+.door-thumb {
+  max-width: 120%;
+  max-height: 120%;
   object-fit: contain;
   image-rendering: pixelated;
 }
-.door .door-plate {
+
+.door-plate {
   position: absolute;
-  left: 14%;
-  right: 14%;
-  bottom: 11%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  left: 12%;
+  right: 12%;
+  bottom: 10%;
+  display: grid;
   gap: 1px;
+  text-align: center;
 }
-.door .door-title {
-  font-size: 9px;
-  color: #dbe9f8;
-  white-space: nowrap;
+
+.door-code {
+  font: 700 7px/1 monospace;
+  color: #003961;
+}
+
+.door-name {
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
-}
-.door .door-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  font-size: 9px;
+  color: #003961;
 }
 
-/* header back-link */
-.app-header { position: relative; }
-.app-back {
-  margin-left: auto;
-  font-size: 13px;
-  color: #8fb0d4;
+.apt-hint {
+  margin: 6px 0 0;
+  font: 700 11px/1 monospace;
+  letter-spacing: 0.12em;
+}
+
+/* Bottom boxes */
+.panel-wrap {
+  margin-top: 0;
+  background: #608bc7;
+  border: 1px solid var(--line);
+  border-top: 0;
+}
+
+.save-hint {
+  display: block;
+  padding: 5px 8px;
+  color: var(--ink);
   text-decoration: none;
-  border: 1px solid #34506e;
-  border-radius: 6px;
-  padding: 5px 12px;
+  background: #86a8d9;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
 }
-.app-back:hover { background: #1e3550; color: #cfe0f2; }
 
-/* NMLの小箱 — mail reader (after the original screen) */
-.mail {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  height: 29px;
+  border-bottom: 1px solid var(--line);
 }
-.mail-head {
+
+.tab {
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: #6f96cf;
+  color: var(--ink);
+  text-align: left;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tab-active {
+  background: #86a8d9;
+  font-weight: 700;
+}
+
+.panel {
+  min-height: 304px;
+  padding: 6px;
+  background: #6f96cf;
+}
+
+.box-title {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  padding: 8px 12px;
-  border-radius: 8px 8px 0 0;
-  background: linear-gradient(180deg, #20344e, #182838);
-  border: 1px solid #3c5a7e;
+  gap: 8px;
+  height: 32px;
+  padding: 2px 6px;
+  font-size: 20px;
+  font-weight: 700;
 }
-.mail-subject { font-size: 15px; color: #dceaf8; font-weight: 600; }
-.mail-nav { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-.mail-count { font-size: 12px; color: #8fb0d4; font-variant-numeric: tabular-nums; }
-.mail-meta {
+
+.box-face,
+.mail-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 16px;
+}
+
+.box-actions {
+  margin-left: auto;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  font-size: 12px;
-  color: #8fb0d4;
-  padding: 0 4px;
+  gap: 3px;
 }
-.mail-room { color: #bcd8f4; }
-.mail-new { color: #ffd35a; font-style: normal; font-weight: 700; font-size: 11px; }
-.mail-stars { color: #ffd35a; }
+
+.mini-btn {
+  min-width: 46px;
+  height: 26px;
+  padding: 0 7px;
+}
+
+.room-stats,
+.mail-meta {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px 6px 0 0;
+  background: #86a8d9;
+}
+
+.stat-room,
+.mail-room,
+.mail-count {
+  font: 700 20px/1 monospace;
+}
+
+.stat-exp {
+  font-size: 10px;
+}
+
+.room-shelf {
+  min-height: 178px;
+  max-height: 178px;
+  overflow: auto;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  background: var(--paper);
+}
+
+.room-shelf.is-editing {
+  box-shadow: inset 0 0 0 2px #003961;
+}
+
+.box-hint,
+.blog-hint {
+  margin: 5px 2px 0;
+  font-size: 11px;
+  color: #123f69;
+}
+
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.item-chip {
+  display: grid;
+  grid-template-rows: 48px auto auto;
+  justify-items: center;
+  align-items: center;
+  min-height: 88px;
+  border: 1px solid #436895;
+  border-radius: 6px;
+  background: #86a8d9;
+  color: var(--ink);
+  padding: 5px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.item-chip:hover:not(:disabled) {
+  background: #b6cbf2;
+}
+
+.item-chip:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.item-art {
+  max-width: 58px;
+  max-height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.item-chip strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-chip .note,
+.item-chip .count {
+  font-size: 10px;
+}
+
+.feed-empty {
+  padding: 12px;
+  color: #244f78;
+}
+
+/* NML mail */
+.mail {
+  display: grid;
+  gap: 6px;
+}
+
+.mail-title {
+  font-size: 18px;
+}
+
+.mail-subject {
+  font-size: 15px;
+}
+
+.mail-meta {
+  grid-template-columns: auto auto auto auto 1fr;
+}
+
+.mail-new,
+.mail-stars {
+  font-weight: 700;
+}
+
 .mail-body {
-  background: #eaf2fb;
-  color: #1c3148;
-  border: 1px solid #3c5a7e;
-  border-radius: 4px;
-  padding: 14px 16px;
-  line-height: 1.8;
-  min-height: 120px;
+  height: 180px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 13px 14px;
+  line-height: 1.85;
 }
-.mail-body p { margin: 0 0 6px; }
-.mail-sig { margin-top: 10px; color: #5a7088; font-size: 13px; text-align: right; }
+
+.mail-body p {
+  margin: 0 0 4px;
+}
+
+.mail-sig {
+  text-align: right;
+  color: #436895;
+}
+
+.visit-btn {
+  justify-self: start;
+  margin-left: 4px;
+}
+
+/* NML authoring / blog */
+.blog {
+  display: grid;
+  gap: 8px;
+}
+
+.field {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 9px 10px;
+  font: 12px/1.65 "Hiragino Kaku Gothic ProN", "Yu Gothic", Osaka, sans-serif;
+}
+
+.blog-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.feed {
+  display: grid;
+  gap: 5px;
+  max-height: 126px;
+  overflow: auto;
+}
+
+.post {
+  border: 1px solid #436895;
+  background: #86a8d9;
+  padding: 7px 9px;
+}
+
+.post-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.post-tag {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #244f78;
+}
+
+@media (max-width: 700px) {
+  .app {
+    font-size: 11px;
+  }
+
+  .apt {
+    padding: 14px 10px 8px;
+  }
+
+  .apt-top {
+    grid-template-columns: auto 1fr;
+    gap: 6px 10px;
+  }
+
+  .apt-info,
+  .apt-nav {
+    grid-column: 1 / -1;
+  }
+
+  .doors {
+    gap: 6px;
+  }
+
+  .tabs {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .room-stats,
+  .mail-meta {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .item-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

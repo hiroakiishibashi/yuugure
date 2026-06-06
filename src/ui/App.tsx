@@ -9,16 +9,18 @@ import { useState } from 'react';
 import { useGame } from './GameContext';
 import { BlogPanel } from './blog/BlogPanel';
 import { MailBox } from './mail/MailBox';
+import { RoomBox } from './room/RoomBox';
 
-type Tab = 'mail' | 'blog';
+type Tab = 'room' | 'mail' | 'blog';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'room', label: '自分の部屋' },
   { id: 'mail', label: 'NMLの小箱' },
-  { id: 'blog', label: 'じぶんの小箱' },
+  { id: 'blog', label: 'しあわせの箱' },
 ];
 
 export function App(): JSX.Element {
-  const [tab, setTab] = useState<Tab>('mail');
+  const [tab, setTab] = useState<Tab>('room');
   const game = useGame();
 
   return (
@@ -41,6 +43,7 @@ export function App(): JSX.Element {
         ))}
       </nav>
       <div className="panel">
+        {tab === 'room' && <RoomBox />}
         {tab === 'mail' && <MailBox />}
         {tab === 'blog' && <BlogPanel />}
       </div>

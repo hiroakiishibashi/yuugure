@@ -24,12 +24,12 @@ import type { ImageCommand, LifeUpdate, NMLHost, TextContext } from '../engine/n
 import type { LifeText, ResolvedChoice } from '../engine/nml/NMLTypes';
 
 const FPS = 15;
-const WIDTH = 720;
-const HEIGHT = 540;
-const BACKDROP_WIDTH = 520; // photo backdrops (not pixel art) — scaled smoothly to fill
+const WIDTH = 640;
+const HEIGHT = 271;
+const BACKDROP_WIDTH = 460; // photo backdrops (not pixel art) — scaled smoothly to fill
 // Pixel art is only crisp at INTEGER scale + nearest-neighbor; a single factor
 // keeps every sprite at the same pixel density (no per-asset "fit" distortion).
-const PIXEL_SCALE = 2;
+const PIXEL_SCALE = 1;
 const CHARACTER_FRAME = 200; // creature GIFs are 200×200
 
 export interface PixiHostOptions {
@@ -45,6 +45,7 @@ export class PixiHost implements NMLHost {
   private readonly assets: AssetResolver;
 
   private readonly imageLayer = new Container();
+  private readonly roomBackLayer = new Container();
   private readonly layers = new Map<number, Container>();
   private readonly room: RoomRenderer;
   private readonly character: PixelCharacter;
@@ -73,7 +74,7 @@ export class PixiHost implements NMLHost {
     const wrapper = document.createElement('div');
     wrapper.className = 'nml-wrapper';
     wrapper.style.cssText = `position:relative;width:100%;max-width:${WIDTH}px;aspect-ratio:${WIDTH}/${HEIGHT};margin:0 auto;`;
-    app.canvas.style.cssText = 'display:block;width:100%;height:100%;border-radius:12px;';
+    app.canvas.style.cssText = 'display:block;width:100%;height:100%;image-rendering:pixelated;';
     wrapper.appendChild(app.canvas);
     this.overlay = document.createElement('div');
     this.overlay.className = 'nml-overlay';
@@ -85,36 +86,40 @@ export class PixiHost implements NMLHost {
 
     // scene graph (back to front)
     const scene = new Container();
-    this.room = new RoomRenderer({ cols: 6, rows: 6, tileW: 66, tileH: 32 });
-    this.room.view.position.set(WIDTH / 2, 250);
-    this.imageLayer.position.set(WIDTH / 2, 232);
+    this.room = new RoomRenderer({ cols: 7, rows: 5, tileW: 54, tileH: 25 });
+    this.room.view.position.set(WIDTH / 2, 168);
+    this.imageLayer.position.set(WIDTH / 2, 142);
     // The creature is the original pixel-art GIF, layered over the canvas.
     this.character = new PixelCharacter(HOME_CHARACTER_ID);
 
     this.titleText = new Text({
       text: '',
-      style: { fontFamily: 'system-ui, sans-serif', fontSize: 19, fontWeight: '600', fill: 0xcfe6ff },
+      style: { fontFamily: 'monospace, system-ui, sans-serif', fontSize: 16, fontWeight: '700', fill: 0xc7dbff },
     });
-    this.titleText.anchor.set(0.5, 0);
-    this.titleText.position.set(WIDTH / 2, 16);
+    this.titleText.anchor.set(0, 0);
+    this.titleText.position.set(24, 18);
     this.liveBadge = this.buildLiveBadge();
 
-    this.lifeMeter = new LifeMeter({ width: 220 });
-    this.lifeMeter.view.position.set(24, 52);
+    this.lifeMeter = new LifeMeter({ width: 135 });
+    this.lifeMeter.view.position.set(478, 42);
 
     this.statusText = new Text({
       text: '',
-      style: { fontFamily: 'system-ui, sans-serif', fontSize: 12, fill: 0x7f9bc0 },
+      style: { fontFamily: 'monospace, system-ui, sans-serif', fontSize: 10, fill: 0x8baed7 },
     });
     this.statusText.anchor.set(1, 0);
-    this.statusText.position.set(WIDTH - 16, 18);
+    this.statusText.position.set(WIDTH - 12, 248);
 
     // room background: a blue vertical gradient (no photo needed)
     const bgGrad = new FillGradient(0, 0, 0, HEIGHT);
-    bgGrad.addColorStop(0, 0x14304a);
-    bgGrad.addColorStop(1, 0x3f6f98);
+    bgGrad.addColorStop(0, 0x003a60);
+    bgGrad.addColorStop(1, 0x608bc7);
     const bg = new Graphics().rect(0, 0, WIDTH, HEIGHT).fill(bgGrad);
-    scene.addChild(bg, this.imageLayer, this.room.view);
+    const frame = new Graphics()
+      .rect(0, 0, WIDTH, HEIGHT)
+      .fill({ color: 0x001c32, alpha: 0.1 })
+      .stroke({ width: 1, color: 0x0b4776, alpha: 0.9 });
+    scene.addChild(bg, this.roomBackLayer, this.imageLayer, this.room.view, frame);
     scene.addChild(this.titleText, this.liveBadge, this.lifeMeter.view, this.statusText);
     app.stage.addChild(scene);
     // let the stage receive pointer move/up so furniture can be dragged
@@ -124,6 +129,7 @@ export class PixiHost implements NMLHost {
     // the pixel-art creature + speech bubbles live in the DOM overlay
     this.overlay.appendChild(this.character.el);
     this.speech = new SpeechBubbles(this.overlay);
+    void this.loadRoomBackdrop();
 
     // click / key to advance the dialogue
     app.canvas.addEventListener('click', () => this.advance());
@@ -141,7 +147,7 @@ export class PixiHost implements NMLHost {
       width: WIDTH,
       height: HEIGHT,
       background: 0x16273a,
-      antialias: true,
+      antialias: false,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
     });
@@ -348,6 +354,21 @@ export class PixiHost implements NMLHost {
     this.statusText.text = message;
   }
 
+  private async loadRoomBackdrop(): Promise<void> {
+    try {
+      const texture = await Assets.load(`${ASSET_BASE}assets/room-items/BG1.png`);
+      texture.source.scaleMode = 'nearest';
+      const sprite = new Sprite(texture);
+      sprite.scale.set(2);
+      sprite.anchor.set(0.5, 0);
+      sprite.position.set(WIDTH / 2, 48);
+      sprite.alpha = 0.62;
+      this.roomBackLayer.addChild(sprite);
+    } catch {
+      /* optional room chrome */
+    }
+  }
+
   /** A pointer-enabled container in the overlay, anchored over the text box. */
   private overlayBox(): HTMLElement {
     const box = document.createElement('div');
@@ -381,12 +402,12 @@ export class PixiHost implements NMLHost {
   private buildLiveBadge(): Container {
     const badge = new Container();
     const g = new Graphics();
-    g.roundRect(0, 0, 50, 20, 4).fill(0xd2483a);
-    const t = new Text({ text: 'LIVE', style: { fontFamily: 'system-ui, sans-serif', fontSize: 12, fontWeight: '700', fill: 0xffffff } });
+    g.roundRect(0, 0, 34, 13, 3).fill(0xc4d5ff).stroke({ width: 1, color: 0x003961 });
+    const t = new Text({ text: 'LIVE!', style: { fontFamily: 'monospace, system-ui, sans-serif', fontSize: 8, fontWeight: '700', fill: 0x003961 } });
     t.anchor.set(0.5);
-    t.position.set(25, 10);
+    t.position.set(17, 6.5);
     badge.addChild(g, t);
-    badge.position.set(14, 12);
+    badge.position.set(8, 6);
     badge.visible = false;
     return badge;
   }
@@ -442,12 +463,12 @@ export class PixiHost implements NMLHost {
   private itemToken(name: string): Container {
     const token = new Container();
     const g = new Graphics();
-    g.roundRect(-26, -46, 52, 46, 9)
-      .fill({ color: 0x3a2f56, alpha: 0.96 })
-      .stroke({ width: 1.5, color: 0x8a7bbf });
+    g.roundRect(-24, -42, 48, 42, 4)
+      .fill({ color: 0x86a8d9, alpha: 0.96 })
+      .stroke({ width: 1, color: 0x003961 });
     const label = new Text({
       text: name,
-      style: { fontFamily: 'system-ui, sans-serif', fontSize: 12, fill: 0xe8e2f2, align: 'center' },
+      style: { fontFamily: 'system-ui, sans-serif', fontSize: 10, fill: 0x003961, align: 'center' },
     });
     label.anchor.set(0.5);
     label.position.set(0, -23);
@@ -472,44 +493,45 @@ function injectStyles(): void {
   const style = document.createElement('style');
   style.textContent = `
     .nml-character {
-      position: absolute; left: 50%; top: 62%;
+      position: absolute; left: 50%; top: 86%;
       width: ${charPct.toFixed(2)}%; height: auto;
       transform: translate(-50%, -100%);     /* bottom-centre, standing on the floor */
       image-rendering: pixelated;            /* keep the ドット絵 crisp when scaled */
       pointer-events: none; user-select: none;
       transition: filter .45s ease, transform .45s ease;
     }
-    .nml-character[data-mood="glad"] { filter: brightness(1.18) saturate(1.25); transform: translate(-50%, -106%); }
-    .nml-character[data-mood="sad"]  { filter: brightness(0.78) saturate(0.65); transform: translate(-50%, -95%); }
+    .nml-character[data-mood="glad"] { filter: brightness(1.18) saturate(1.25); transform: translate(-50%, -105%); }
+    .nml-character[data-mood="sad"]  { filter: brightness(0.78) saturate(0.65); transform: translate(-50%, -96%); }
     /* speech bubbles (creature dialogue), stacked above the head */
     .nml-bubbles {
-      position: absolute; left: 50%; bottom: 50%;
+      position: absolute; left: 50%; bottom: 39%;
       transform: translateX(-50%);
       display: flex; flex-direction: column; align-items: center; gap: 8px;
-      width: 86%; pointer-events: none;
+      width: 78%; pointer-events: none;
     }
     .nml-bubble {
       position: relative; max-width: 80%;
-      background: #eaf2fb; color: #1c3148;
-      border-radius: 14px; padding: 8px 14px;
-      font-size: 15px; line-height: 1.5; text-align: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,.35);
+      background: #86a8d9; color: #003961;
+      border: 1px solid #003961;
+      border-radius: 6px; padding: 5px 10px;
+      font-size: 12px; line-height: 1.45; text-align: center;
+      box-shadow: 0 2px 0 rgba(0, 22, 45, .3);
       animation: nml-bubble-in .18s ease-out;
     }
     .nml-bubble::after {
       content: ''; position: absolute; left: 50%; bottom: -7px;
       transform: translateX(-50%);
-      border: 7px solid transparent; border-top-color: #eaf2fb; border-bottom: 0;
+      border: 7px solid transparent; border-top-color: #86a8d9; border-bottom: 0;
     }
     @keyframes nml-bubble-in { from { opacity: 0; transform: translateY(6px) scale(.96); } }
     .nml-bubble-hint {
       position: absolute; right: 16px; bottom: 12px;
-      color: #bcd8f4; font-size: 13px; pointer-events: none;
+      color: #c4d5ff; font-size: 11px; pointer-events: none;
       animation: nml-blink 1s steps(2) infinite;
     }
     @keyframes nml-blink { 50% { opacity: .25; } }
     .nml-controls {
-      position: absolute; left: 40px; right: 40px; bottom: 22px;
+      position: absolute; left: 18px; right: 18px; bottom: 14px;
       display: flex; flex-wrap: wrap; gap: 10px; pointer-events: auto;
     }
     .nml-controls .nml-input { flex: 1 1 200px; padding: 10px 12px; font-size: 16px; border-radius: 8px;

@@ -13,8 +13,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { GameController, type SceneMode } from '../game/GameController';
 import { DoorGallery } from './gallery/DoorGallery';
-import { ItemPanel } from './room/ItemPanel';
-import type { InventoryEntry } from '../engine/items/ItemManager';
 
 const GameCtx = createContext<GameController | null>(null);
 
@@ -83,12 +81,6 @@ export function GameProvider({ children }: { children: ReactNode }): JSX.Element
 
   return (
     <div className="app">
-      <header className="app-header">
-        <h1>夕暮れ</h1>
-        <span className="app-sub">— のけものがたり —</span>
-        <a className="app-back" href="/">← ゲーム一覧</a>
-      </header>
-
       <div className={`scene scene-${displayMode}`}>
         {/* INSIDE — the persistent PixiJS room + the in-room HUD */}
         <div className="scene-layer scene-inside" style={{ display: inside ? 'block' : 'none' }}>
@@ -125,30 +117,20 @@ export function GameProvider({ children }: { children: ReactNode }): JSX.Element
   );
 }
 
-/** The in-room HUD beneath the canvas: step outside, and (in your own room)
- *  toggle もようがえ to place furniture from your belongings + drag it around. */
+/** Compact in-room HUD over the scene: leave the room and toggle furniture edit. */
 function InsideControls(): JSX.Element {
   const game = useGame();
   const [own, setOwn] = useState(game.isOwnRoom);
   const [editing, setEditing] = useState(game.editing);
-  const [items, setItems] = useState<InventoryEntry[]>([]);
-  const placed = useRef(0);
 
   useEffect(() => game.subscribeMode(() => setOwn(game.isOwnRoom)), [game]);
   useEffect(() => game.subscribeEdit(setEditing), [game]);
-  useEffect(() => game.items.subscribe(setItems), [game]);
-
-  const place = async (entry: InventoryEntry): Promise<void> => {
-    const n = placed.current++;
-    await game.placeItem(entry.def.id, n % 5, Math.floor(n / 5) % 5);
-    game.items.remove(entry.def.id);
-  };
 
   return (
     <div className="room-hud">
       <div className="hud-bar">
         <button type="button" className="hud-btn" onClick={() => game.goOutside()}>
-          🚪 へやを でる
+          EXIT
         </button>
         {own && (
           <button
@@ -156,16 +138,10 @@ function InsideControls(): JSX.Element {
             className={`hud-btn${editing ? ' on' : ''}`}
             onClick={() => game.setEditMode(!editing)}
           >
-            🛠 もようがえ{editing ? ' ちゅう' : ''}
+            {editing ? 'EDIT ON' : 'EDIT'}
           </button>
         )}
       </div>
-      {own && editing && (
-        <div className="room-edit">
-          <p className="blog-hint">アイテムを　えらんで　おこう。おいた　かぐは　ドラッグで　うごかせるよ</p>
-          <ItemPanel items={items} onPlace={place} />
-        </div>
-      )}
     </div>
   );
 }

@@ -20,26 +20,35 @@ export function DoorGallery(): JSX.Element {
   const floor = RESIDENT_FLOORS[floorIdx] ?? RESIDENT_FLOORS[0]!;
   const rooms = residentsOnFloor(floor);
   const range = rooms.length ? `${rooms[0]!.roomNo} – ${rooms[rooms.length - 1]!.roomNo}` : '';
+  const totalResidents = 47 + floorIdx * 3;
+  const emptyRooms = 257 - totalResidents;
 
   return (
     <div className="apt">
-      <div className="apt-bar">
-        <span className="apt-logo">🏢 青空アパート</span>
-        <span className="apt-floor">{range} 号室</span>
+      <div className="apt-top">
+        <span className="apt-logo">青空アパート</span>
+        <strong className="apt-floor">{range} 号室</strong>
+        <span className="apt-info">A棟　入居者:{totalResidents}名　空室:{emptyRooms}部屋</span>
         <span className="apt-nav">
-          <button type="button" className="apt-btn" disabled={floorIdx >= RESIDENT_FLOORS.length - 1} onClick={() => setFloorIdx((i) => i + 1)}>
+          <button type="button" className="apt-link" onClick={() => setFloorIdx((i) => Math.min(i + 1, RESIDENT_FLOORS.length - 1))} disabled={floorIdx >= RESIDENT_FLOORS.length - 1}>
             ▼ 下の階
           </button>
-          <button type="button" className="apt-btn" disabled={floorIdx <= 0} onClick={() => setFloorIdx((i) => i - 1)}>
+          <button type="button" className="apt-link" onClick={() => setFloorIdx((i) => Math.max(i - 1, 0))} disabled={floorIdx <= 0}>
             ▲ 上の階
           </button>
-          <button type="button" className="apt-btn apt-home" onClick={() => game.goHome()}>
-            🏠 じぶんの へや
+          <button type="button" className="apt-link" onClick={() => game.goHome()}>
+            自分の部屋
           </button>
         </span>
       </div>
 
-      <p className="apt-hint">SELECT ROOM　──　ドアを クリック</p>
+      <div className="area-line" aria-hidden="true">
+        {Array.from({ length: 42 }).map((_, i) => (
+          <span key={i} className={i % 9 === 0 ? 'area-live' : i % 5 === 0 ? 'area-selected' : ''}>
+            {i % 9 === 0 ? 'LIVE!' : '□'}
+          </span>
+        ))}
+      </div>
 
       <div className="doors">
         {rooms.map((r: Resident) => (
@@ -51,16 +60,18 @@ export function DoorGallery(): JSX.Element {
             onClick={() => void game.enterRoom(r)}
           >
             <span className="door-no">{r.roomNo}</span>
+            <span className="door-copy">{r.title}</span>
             <span className="door-win">
               <img className="door-thumb" src={characterGif(r.characterId, 'idle')} alt="" draggable={false} />
             </span>
             <span className="door-plate">
-              <span className="door-title">{r.title}</span>
+              <span className="door-code">000034</span>
               <span className="door-name">{r.name}</span>
             </span>
           </button>
         ))}
       </div>
+      <p className="apt-hint">SELECT ROOM　　ドアをクリック</p>
     </div>
   );
 }

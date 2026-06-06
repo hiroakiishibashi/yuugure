@@ -31,6 +31,9 @@ export interface SaveData {
 
 const LOCAL_KEY = 'yuugure_save_v1';
 const DEBOUNCE_MS = 1500;
+const SESSION_TIMEOUT_MS = 900;
+const QUERY_TIMEOUT_MS = 1400;
+type SaveQueryResult = { data: { metadata: unknown } | null; error: unknown };
 
 export class SaveService {
   private readonly supabase: SupabaseClient;
@@ -51,8 +54,8 @@ export class SaveService {
   /** Resolve the current signed-in user (from the shared session), if any. */
   async init(): Promise<void> {
     try {
-      const { data } = await this.supabase.auth.getSession();
-      this.userId = data.session?.user?.id ?? null;
+      const result = await withTimeout(this.supabase.auth.getSession(), SESSION_TIMEOUT_MS, null);
+      this.userId = result?.data.session?.user?.id ?? null;
     } catch {
       this.userId = null;
     }
@@ -68,12 +71,19 @@ export class SaveService {
     if (!this.ready) await this.init();
     if (this.userId) {
       try {
-        const { data, error } = await this.supabase
+        const query = this.supabase
           .from('scores')
           .select('metadata')
           .eq('user_id', this.userId)
           .eq('game_id', GAME_ID)
-          .maybeSingle();
+          .maybeSingle() as PromiseLike<SaveQueryResult>;
+        const result = await withTimeout<SaveQueryResult | null>(
+          query,
+          QUERY_TIMEOUT_MS,
+          null,
+        );
+        const data = result?.data;
+        const error = result?.error;
         if (!error && data?.metadata && (data.metadata as SaveData).v === 1) {
           return data.metadata as SaveData;
         }
@@ -106,6 +116,21 @@ export class SaveService {
       /* localStorage already holds the latest; ignore network errors */
     }
   }
+}
+
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    Promise.resolve(promise)
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        resolve(fallback);
+      });
+  });
 }
 
 function readLocal(): SaveData | null {
