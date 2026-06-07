@@ -12,15 +12,15 @@
         color: #003961;
       }
       /* Full-page layout (the game IS the page — no iframe). The portal's shared
-         site header (injected as a sticky 60px <nav>; see vite.config) sits above
+         site chrome (injected by vite.config) sits around
          and the game is centred below it. */
       #app { width: 100%; max-width: 640px; margin: 0 auto; padding: 18px 0 50px; }
     </style>
     <script type="module" src="/src/main.tsx"></script>
   </head>
   <body>
-    <!-- メインサイト共通ヘッダー（本番で /js/common-header.js がこの <nav> を差し替え。
-         スクリプトは vite.config の transformIndexHtml で注入される） -->
+    <!-- メインサイト共通ヘッダー（本番で /js/common-header.js がこの <nav> を差し替える。
+         共通ヘッダー/フッターのスクリプトは vite.config の transformIndexHtml で注入される） -->
     <nav><!-- replaced by /js/common-header.js --></nav>
     <div id="app"></div>
   </body>
